@@ -267,6 +267,44 @@ CashWeb.prototype.saveParams = function(apiToken, params, type, cb) {
 	})
 };
 
+CashWeb.prototype.saveParamsTest = function(apiToken, params, type, pidName, cb)
+{
+	var self = this;
+	var url = self.prefix+"/reports-test/"+type;
+	var oldpid = pidName+"-"+type+"-"+params.oldName;
+	var pid = pidName+"-"+type+"-"+params.reportName;
+	var settings = getDefaultSettings();
+	settings.accType = params.accType;
+	settings.maxAcc = params.maxAcc;
+	settings.startDate = dfW3C.format(new Date(params.startDate));
+	settings.endDate = dfW3C.format(new Date(params.endDate));
+	settings.reportName = params.reportName;
+	settings.accIds = _.isArray(params.accIds) ?_.map(params.accIds, function(item){return new self.ctx.ObjectID(item)}) : null;
+	settings.accLevel = params.accLevel;
+	settings.reportCurrency = params.reportCurrency;
+	var steeps = [
+		function(cb) {
+			self.removeTabs(apiToken, oldpid, cb);
+		},
+		function(cb) {
+			var req = {session:{}};
+			req.session.apiToken = apiToken;
+			self.guessTab(req, {pid:pid, name:settings.reportName, url:url+"?name="+settings.reportName}, cb);
+		},
+		function(cb){
+			self.saveTabSettings(apiToken, pid, settings, cb);
+		}
+	];
+
+	// if pid the same then not need to recreate tabs
+	if (oldpid==pid)
+		steeps = steeps.slice(2);
+	async.series(steeps, function (err) {
+		if (err) cb(err);
+		else cb(null,url+"?name="+settings.reportName);
+	})
+};
+
 function getDefaultSettings(reportName) {
 	var defaultSettings = {
 			startDate:dfW3C.format(new Date(new Date().getFullYear()-2, 0, 1)),

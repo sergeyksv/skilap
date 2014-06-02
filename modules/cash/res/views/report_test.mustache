@@ -1,0 +1,202 @@
+<div class="clearfix">
+	<div id="report" style="width: 500px; height: 500px; float:left;"></div>
+	<div id="report2" style="width: 500px; height: 500px; float:left;"></div>
+</div>
+
+<script>
+require(["jquery","jquery-block","highcharts"], function ($) {
+	$(function() {
+		$("#container").addClass("ready");
+		var chart;
+		function adaptHeight() {
+			$("#report, #report2").height($(window).height()-$(".navbar.navbar-fixed-top").height()-20);
+		}
+		$(window).resize(function(){
+			adaptHeight();
+		});
+		$(window).resize();
+		function createChart() {
+			{{#if data1.barflow}}
+				chart = new Highcharts.Chart({
+					chart: {
+						renderTo: 'report',
+						defaultSeriesType: 'column'
+					},
+					title: {
+						text: '{{reportSettings.reportName}}'
+					},
+					xAxis: {
+						categories: {{{data1.categories}}}
+					},
+					yAxis: {
+						title: {
+							text: '{{reportSettings.accTypeName}}'
+						},
+						stackLabels: {
+							enabled: true,
+							style: {
+								fontWeight: 'bold',
+								color: (Highcharts.theme && Highcharts.theme.textColor) || 'gray'
+							},
+							formatter : function () {
+								return this.total.toFixed(2);
+							}
+						}
+					},
+					credits: {
+						enabled: true
+					},
+					tooltip: {
+						formatter: function() {
+							return '<b>'+this.series.name +'</b>: '+ this.y +'<br/>'+
+								 'Total: '+ this.point.stackTotal.toFixed(2);
+						}
+					},
+					plotOptions: {
+						column: {
+							stacking: 'normal',
+							dataLabels: {
+								enabled: false,
+								color: (Highcharts.theme && Highcharts.theme.dataLabelsColor) || 'white'
+							}
+						}
+					},
+					series: {{{data1.series}}}
+				});
+
+				chartTest = new Highcharts.Chart({
+					chart: {
+						renderTo: 'report2',
+						defaultSeriesType: 'column'
+					},
+					title: {
+						text: '{{reportSettings1.reportName}}'
+					},
+					xAxis: {
+						categories: {{{data2.categories}}}
+					},
+					yAxis: {
+						title: {
+							text: '{{reportSettings1.accTypeName}}'
+						},
+						stackLabels: {
+							enabled: true,
+							style: {
+								fontWeight: 'bold',
+								color: (Highcharts.theme && Highcharts.theme.textColor) || 'gray'
+							},
+							formatter : function () {
+								return this.total.toFixed(2);
+							}
+						}
+					},
+					credits: {
+						enabled: true
+					},
+					tooltip: {
+						formatter: function() {
+							return '<b>'+this.series.name +'</b>: '+ this.y +'<br/>'+
+								 'Total: '+ this.point.stackTotal.toFixed(2);
+						}
+					},
+					plotOptions: {
+						column: {
+							stacking: 'normal',
+							dataLabels: {
+								enabled: false,
+								color: (Highcharts.theme && Highcharts.theme.dataLabelsColor) || 'white'
+							}
+						}
+					},
+					series: {{{data2.series}}}
+				});
+			{{/if}}
+
+			{{#if pieflow}}
+			chart = new Highcharts.Chart({
+				chart: {
+					renderTo: 'report',
+					plotBackgroundColor: null,
+					plotBorderWidth: null,
+					plotShadow: false
+				},
+				title: {
+					text: '{{reportSettings.reportName}}'
+				},
+				tooltip: {
+					formatter: function() {
+						return '<b>'+this.point.name +'</b>: '+ this.percentage.toFixed(2) +' % ('+ this.y.toFixed(2)+')';
+
+					}
+				},
+				plotOptions: {
+					pie: {
+						allowPointSelect: true,
+						cursor: 'pointer',
+						showInLegend: true,
+						dataLabels: {
+							enabled: true,
+							color: '#000000',
+							connectorColor: '#000000',
+							formatter: function() {
+								return '<b>'+ this.point.name +'</b>: '+ this.percentage.toFixed(2) +' % ('+ this.y.toFixed(2)+')';
+							}
+						}
+					}
+				},
+				series: [{{{series}}}]
+			});
+			{{/if}}
+		}
+
+		setTimeout(createChart, 50);
+
+		var $page = $("body");
+		$("#page_menu #settings_test").on("click", function(evt) {
+			evt.preventDefault();
+			$this = $(this);
+			var $me = $page;
+			$me.block();
+			(function (cb) {
+				require(['cash/reportsettings_test'], function (Modal) {
+					var modal = new Modal();
+					modal.show();
+					modal.once('shown', function () { $me.unblock(); })
+					modal.once('result', function (type, acc) {
+						if (type != 'saved') return;
+						modal.hide()
+						cb();
+					})
+				},cb)
+			})(function (err) {
+				if (err) appError(err);
+				$me.unblock();
+			})
+			return false;
+		});
+		$("#page_menu #settings_test_1").on("click",function(evt){
+			evt.preventDefault();
+			$this = $(this);
+			var $me = $page;
+			$me.block();
+			(function (cb) {
+				require(['cash/reportsettings_test_1'], function (Modal) {
+					var modal = new Modal();
+					modal.show();
+					modal.once('shown', function () { $me.unblock(); })
+					modal.once('result', function (type, acc) {
+						if (type!='saved') return;
+						modal.hide()
+						cb();
+					})
+				},cb)
+			})(function (err) {
+				if (err) appError(err);
+				$me.unblock();
+			})
+			return false;
+		});
+	});
+}, appError)
+</script>
+
