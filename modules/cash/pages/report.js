@@ -17,9 +17,13 @@ module.exports = function account(webapp) {
 		report1(req, res, next, "barflow");
 	});
 
+	app.get(prefix + "/reports-test/barflow", webapp.layout(), function (req, res, next ) {
+		report2(req, res, next, "barflow");
+	});
+
 	app.get(prefix + "/reports/pieflow", webapp.layout(), function (req, res, next ) {
 		report1(req, res, next, "pieflow");
-	});	
+	});
 
 	function report1(req, res, next, type) {
 		if (!req.query || !req.query.name) {
@@ -60,21 +64,114 @@ module.exports = function account(webapp) {
 				}
 				calculateGraphData(req.session.apiToken,type,reportSettings,cb1);
 			},
-			function(data_,cb1){				
-				data = data_;				
+			function(data_,cb1){
+				data = data_;
 				cb1()
 			},
-			function(){										
+			function(){
 				data.tabs = vtabs;
 				data.pmenu = {name:req.query.name,
 					items:[{name:webapp.ctx.i18n(req.session.apiToken, 'cash','Page settings'),id:"settings",href:"#"}]}
 				data.reportSettings = reportSettings;
-			
+
 				res.render(__dirname+"/../res/views/report", data);
 			}],
 			next
 		);
 	};	
+
+	// test
+	function report2(req, res, next, type) {
+		if (!req.query || !req.query.name) {
+			var ct = "Income statement";
+			if (type == 'pieflow')
+				ct = 'Pie flow chart';
+			else if (type == 'barflow')
+				ct = 'Bar flow chart';
+			res.redirect(req.url + "?name=" +  ctx.i18n(req.session.apiToken, 'cash', ct));
+			return;
+		}
+
+		var pid = "reports-test-first-"+type +"-"+req.query.name;
+		var pid1 = "reports-test-second-"+type +"-"+req.query.name;
+		var vtabs, data, reportSettings, reportSettings1;
+		async.waterfall([
+			function (cb2) {
+				async.series([
+					function(cb3) {
+						webapp.guessTab(
+							req, {pid: pid, name:req.query.name, url:req.url}, cb3
+						);
+					},
+					function(cb3) {
+						webapp.getTabSettings(req.session.apiToken, pid, cb3);
+					},
+					function(cb3) {
+						webapp.getTabSettings(req.session.apiToken, pid1, cb3);
+					}
+				],
+				function (err, results) {
+					cb2(null, results[0], results[1], results[2]);
+				});
+			},
+			function (vtabs_, reportSettings_, reportSettings_1, cb1) {
+				vtabs = vtabs_;
+				reportSettings = reportSettings_;
+				reportSettings1 = reportSettings_1;
+				if (_.isEmpty(reportSettings) || !reportSettings.version || (reportSettings.version != reportSettingsVersion)){
+					reportSettings = getDefaultSettings(req.query.name);
+					webapp.saveTabSettings(req.session.apiToken, pid, reportSettings, function(err){
+						if (err) console.log(err);
+					});
+				}
+				if (_.isEmpty(reportSettings1) || !reportSettings1.version || (reportSettings1.version != reportSettingsVersion)){
+					reportSettings1 = getDefaultSettings(req.query.name);
+					webapp.saveTabSettings(req.session.apiToken, pid1, reportSettings1, function(err){
+						if (err) console.log(err);
+					});
+				}
+				async.series([
+					function(cb1) {
+						calculateGraphData(req.session.apiToken, type, reportSettings, cb1);
+					},
+					function(cb1) {
+						calculateGraphData(req.session.apiToken, type, reportSettings1, cb1);
+					}
+				],
+				function (err, results) {
+					cb1(null, results[0], results[1]);
+				});
+			},
+			function(data1, data2, cb1) {
+				data = {data1: data1, data2: data2};
+				// console.log(data)
+				cb1()
+			},
+			function(){
+				data.tabs = vtabs;
+				data.pmenu = {
+					name:req.query.name,
+					items:[
+						{
+							name: webapp.ctx.i18n(req.session.apiToken, 'cash','Page test settings'),
+							id:"settings_test", 
+							href:"#"
+						},
+						{
+							name: webapp.ctx.i18n(req.session.apiToken, 'cash','Page test1 settings'),
+							id:"settings_test_1",
+							href:"#"
+						}
+					]
+				}
+				data.reportSettings = reportSettings;
+				data.reportSettings1 = reportSettings1;
+				// console.log(data)
+				res.render(__dirname+"/../res/views/report_test", data);
+			}],
+			next
+		);
+	};
 
 	function calculateGraphData(token, type, params, cb){
 		var periods=categories=null;
@@ -101,8 +198,8 @@ module.exports = function account(webapp) {
 				}, {});		
 				cashapi.getTransactionsInDateRange(token,[params.startDate,params.endDate,true,false],cb1);
 			},
-			function(trns,cb1){			
-				(function (cb) {				
+			function(trns,cb1){
+				(function (cb) {
 				async.forEach(trns, function (tr,cb) {
 					cashapi.getCmdtyPrice(token,tr.currency,{space:"ISO4217",id:params.reportCurrency},null,'safe',function(err,rate){
 						if(err && !(err.skilap && err.skilap.subject == "UnknownRate"))
@@ -118,8 +215,8 @@ module.exports = function account(webapp) {
 									val = 0;
 								}
 								if (params.accType == "INCOME")
-									val *= -1;								
-								acs.summ += val;								
+									val *= -1;
+								acs.summ += val;
 								if (periods) {
 									var d = tr.datePosted.valueOf();
 									_.forEach(acs.periods, function (p) {
@@ -178,18 +275,18 @@ module.exports = function account(webapp) {
 								})
 							} while (_.size(ids)!=0);
 							//filter by id and type
-							if(_.isArray(params.accIds) && _.size(accKeys) != params.accIds.length){								
+							if(_.isArray(params.accIds) && _.size(accKeys) != params.accIds.length){
 								accKeys = _.filter(accKeys, function(elem){
 									if (elem.expand)
 										return true;
 									return _.find(params.accIds, function(item){return _.isEqual(elem._id.toString(),item.toString())}
-								)});										
-							}													
-							accKeys = _(accKeys).reduce(function (memo, acc) {								
+								)});
+							}
+							accKeys = _(accKeys).reduce(function (memo, acc) {
 								if (acc.type == params.accType || acc.expand)
-									memo[acc._id] = acc;					
+									memo[acc._id] = acc;
 								return memo;
-							}, {});		
+							}, {});
 							cb2();
 						}
 					],function(err){
@@ -197,21 +294,21 @@ module.exports = function account(webapp) {
 						cb1();
 					});
 				}
-				else{					
+				else{
 					//filter by id and type;
 					if(_.isArray(params.accIds) && _.size(accKeys) != params.accIds.length){
-						accKeys = _.filter(accKeys, function(elem){ return _.find(params.accIds, function(item){return _.isEqual(elem._id.toString(),item.toString())})});										
-					}						
-					accKeys = _(accKeys).reduce(function (memo, acc) {								
+						accKeys = _.filter(accKeys, function(elem){ return _.find(params.accIds, function(item){return _.isEqual(elem._id.toString(),item.toString())})});
+					}
+					accKeys = _(accKeys).reduce(function (memo, acc) {
 						if (acc.type == params.accType)
-							memo[acc._id] = acc;					
+							memo[acc._id] = acc;
 						return memo;
-					}, {});		
+					}, {});
 					cb1();
 				}
 				}))
 			},
-			function(cb1){				
+			function(cb1){
 				var total = 0;
 				// find important accounts (with biggest summ over entire period)
 				var iacs = _(accKeys).chain().map(function (acs) { return {_id:acs._id, summ:acs.summ}})
@@ -257,7 +354,10 @@ module.exports = function account(webapp) {
 			if(type == 'pieflow')
 				series = {type:'pie', data: series};
 
-			var data = {categories:JSON.stringify(categories), series:JSON.stringify(series)};
+			var data = {
+				categories:JSON.stringify(categories),
+				series:JSON.stringify(series)
+			};
 			data[type] = 1;
 			cb(null, data);
 		});
@@ -293,5 +393,5 @@ module.exports = function account(webapp) {
 				reportCurrency:repCmdty.id
 			};
 		return defaultSettings;
-	}	
+	}
 }
