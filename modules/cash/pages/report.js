@@ -77,191 +77,226 @@ module.exports = function account(webapp) {
 	};	
 
 	function calculateGraphData(token, type, params, cb){
-		var periods=categories=null;
-		var accountsTree,accKeys;
-		switch(type){
-			case 'barflow':
-				periods = getPeriods(new Date(params.startDate), new Date(params.endDate));
-				categories = _.map(periods, function (p) { return (p.start.getMonth()+1)+"."+p.start.getFullYear();});
-			break;
-			case 'pieflow':
-			break;
-		}
-		async.waterfall([
-			function (cb1) {
-				cashapi.getAllAccounts(token, cb1);
-			},
-			function (accounts, cb1) {					
-				//here not filter accounts yet 
-				accKeys = _(accounts).reduce(function (memo, acc) {					
-					memo[acc._id] = {name:acc.name, _id:acc._id, parentId:acc.parentId,summ:0,type:acc.type};
-					if(periods)
-						memo[acc._id].periods = _(periods).map(function (p) { return _.clone(p); });
-					return memo;
-				}, {});		
-				cashapi.getTransactionsInDateRange(token,[params.startDate,params.endDate,true,false],cb1);
-			},
-			function(trns,cb1){			
-				(function (cb) {				
-				async.forEach(trns, function (tr,cb) {
-					cashapi.getCmdtyPrice(token,tr.currency,{space:"ISO4217",id:params.reportCurrency},null,'safe',function(err,rate){
-						if(err && !(err.skilap && err.skilap.subject == "UnknownRate"))
-							return cb(err);
-						if (!err && rate!=0)
-							var irate = rate;
-						_.forEach(tr.splits, function(split) {
-							var acs = accKeys[split.accountId];
-							if (acs) {
-								var val = split.value*irate;
-								if (params.accType!=acs.type){
-									acs.summ  = 0;
-									val = 0;
-								}
-								if (params.accType == "INCOME")
-									val *= -1;								
-								acs.summ += val;								
-								if (periods) {
-									var d = tr.datePosted.valueOf();
-									_.forEach(acs.periods, function (p) {
-										if (d > p.start.valueOf() && d <= p.end.valueOf()) {
-											p.summ += val;
-										}
-									});
-								}
-							}
-						});
-						cb();
-					})
-				},cb);
-			})(safe.sure(cb1, function () {
-				//collapse accounts to accLevel
-				if(params.accLevel != 'All'){
-					async.series([
-						function(cb2){
-							async.forEachSeries(_.keys(accKeys), function(key,cb3){								
-								cashapi.getAccountInfo(token,key,['level'],function(err,res){
-									if (err) return cb3(err);									
-									accKeys[key].level = res.level;
-									cb3();
-								});
-							},cb2);
-						},
-						function(cb2){							
-							do {
-								// get current ids
-								var ids = _.reduce(_.values(accKeys), function (memo, item) {
-									memo[item._id] = 1;
-									return memo;
-								}, {})
-								// remove accounts that can't be reduced now
-								// accounts that have child or with level
-								// not covered by collapse
-								_.each(accKeys, function (item, id) {
-									delete ids[item.parentId];
-									if (item.level<=params.accLevel)
-										delete ids[id];
-									if (item.type!=params.accType)
-										delete ids[id];
-								})
-								// reduce
-								_.each(ids, function (v,id) {
-									var child = accKeys[id];
-									var parent = accKeys[child.parentId];								
-									parent.summ+=child.summ;
-									parent.expand = 1;
-									if (child.periods) {
-										for (var i = 0 ; i<child.periods.length; i++) {
-											parent.periods[i].summ+=child.periods[i].summ;
-										}									
-									}
-									delete accKeys[id];
-								})
-							} while (_.size(ids)!=0);
-							//filter by id and type
-							if(_.isArray(params.accIds) && _.size(accKeys) != params.accIds.length){								
-								accKeys = _.filter(accKeys, function(elem){
-									if (elem.expand)
-										return true;
-									return _.find(params.accIds, function(item){return _.isEqual(elem._id.toString(),item.toString())}
-								)});										
-							}													
-							accKeys = _(accKeys).reduce(function (memo, acc) {								
-								if (acc.type == params.accType || acc.expand)
-									memo[acc._id] = acc;					
-								return memo;
-							}, {});		
-							cb2();
-						}
-					],function(err){
-						if(err) return cb1(err);
-						cb1();
-					});
-				}
-				else{					
-					//filter by id and type;
-					if(_.isArray(params.accIds) && _.size(accKeys) != params.accIds.length){
-						accKeys = _.filter(accKeys, function(elem){ return _.find(params.accIds, function(item){return _.isEqual(elem._id.toString(),item.toString())})});										
-					}						
-					accKeys = _(accKeys).reduce(function (memo, acc) {								
-						if (acc.type == params.accType)
-							memo[acc._id] = acc;					
-						return memo;
-					}, {});		
-					cb1();
-				}
-				}))
-			},
-			function(cb1){				
-				var total = 0;
-				// find important accounts (with biggest summ over entire period)
-				var iacs = _(accKeys).chain().map(function (acs) { return {_id:acs._id, summ:acs.summ}})
-					.sortBy(function (acs) {return acs.summ}).last(params.maxAcc)
-					.reduce(function (memo, acs) { memo[acs._id]=1; return memo; }, {}).value();
-				// colapse non important
-				var final = _(accKeys).reduce( function (memo, accKey) {
-					total += accKey.summ;
-					if (_(iacs).has(accKey._id))
-						memo[accKey._id] = accKey;
-					else {
-						var other = memo['other'];
-						if (other==null) {
-							accKey.name = "Other";
-							accKey._id = 'other';
-							memo['other'] = accKey;
-						} else {
-							other.summ+=accKey.summ;
-							if (periods)
-								for(var i =0; i<other.periods.length; i++) {
-									other.periods[i].summ+=accKey.periods[i].summ;
-								}
-						}
-					}
-					return memo;
-				}, {});
-				// transform into report form
-				var report = _(final).reduce( function (memo,accKey) {
-					var obj = {};
-					if (periods){
-						var obj = {name:accKey.name, data:_(accKey.periods).pluck('summ')}
-					} else {
-						obj = [accKey.name, accKey.summ];
-					}
-					memo.push(obj);
-					return memo;
-				}, [])
-				cb1(null,report);
+        if (params.twoline=="on"){
+            var rdata;
+            calculateGraphDataSep(token, type, params,function(err, categories, series){
+                params.accType=params.accType2;
 
-			}
-		], function (err, series) {
-			if(err) return cb(err);
-			if(type == 'pieflow')
-				series = {type:'pie', data: series};
+                rdata = _.map(series, function(element) {
+                    return _.extend({}, element, {stack : "gr1"});
+                });
 
-			var data = {categories:JSON.stringify(categories), series:JSON.stringify(series)};
-			data[type] = 1;
-			cb(null, data);
-		});
+                calculateGraphDataSep(token, type, params,function(err,categories,series){
+                    var exarr=_.map(series, function(element) {
+                        return _.extend({}, element, {stack : "gr2"});
+                    });
+
+                    var data = {categories:JSON.stringify(categories), series:JSON.stringify(rdata.concat(exarr))};
+                    data[type] = 1;
+                    cb(null,data);
+                });
+            });
+
+
+        }
+        else {
+            calculateGraphDataSep(token, type, params, function(err,categories,series){
+                var data = {categories:JSON.stringify(categories), series:JSON.stringify(series)};
+                data[type] = 1;
+                cb(null,data);
+            });
+        }
 	}
+
+    function calculateGraphDataSep(token, type, params, cb){
+        var periods=categories=null;
+        var accountsTree,accKeys;
+        switch(type){
+            case 'barflow':
+                periods = getPeriods(new Date(params.startDate), new Date(params.endDate));
+                categories = _.map(periods, function (p) { return (p.start.getMonth()+1)+"."+p.start.getFullYear();});
+                break;
+            case 'pieflow':
+                break;
+        }
+
+        async.waterfall([
+            function (cb1) {
+                cashapi.getAllAccounts(token, cb1);
+            },
+            function (accounts, cb1) {
+                //here not filter accounts yet
+                accKeys = _(accounts).reduce(function (memo, acc) {
+                    memo[acc._id] = {name:acc.name, _id:acc._id, parentId:acc.parentId,summ:0,type:acc.type};
+                    if(periods)
+                        memo[acc._id].periods = _(periods).map(function (p) { return _.clone(p); });
+                    return memo;
+                }, {});
+                cashapi.getTransactionsInDateRange(token,[params.startDate,params.endDate,true,false],cb1);
+            },
+            function(trns,cb1){
+                (function (cb) {
+                    async.forEach(trns, function (tr,cb) {
+                        cashapi.getCmdtyPrice(token,tr.currency,{space:"ISO4217",id:params.reportCurrency},null,'safe',function(err,rate){
+                            if(err && !(err.skilap && err.skilap.subject == "UnknownRate"))
+                                return cb(err);
+                            if (!err && rate!=0)
+                                var irate = rate;
+                            _.forEach(tr.splits, function(split) {
+                                var acs = accKeys[split.accountId];
+                                if (acs) {
+                                    var val = split.value*irate;
+                                    if (params.accType!=acs.type){
+                                        acs.summ  = 0;
+                                        val = 0;
+                                    }
+                                    if (params.accType == "INCOME")
+                                        val *= -1;
+                                    acs.summ += val;
+                                    if (periods) {
+                                        var d = tr.datePosted.valueOf();
+                                        _.forEach(acs.periods, function (p) {
+                                            if (d > p.start.valueOf() && d <= p.end.valueOf()) {
+                                                p.summ += val;
+                                            }
+                                        });
+                                    }
+                                }
+                            });
+                            cb();
+                        })
+                    },cb);
+                })(safe.sure(cb1, function () {
+                    //collapse accounts to accLevel
+                    if(params.accLevel != 'All'){
+                        async.series([
+                            function(cb2){
+                                async.forEachSeries(_.keys(accKeys), function(key,cb3){
+                                    cashapi.getAccountInfo(token,key,['level'],function(err,res){
+                                        if (err) return cb3(err);
+                                        accKeys[key].level = res.level;
+                                        cb3();
+                                    });
+                                },cb2);
+                            },
+                            function(cb2){
+                                do {
+                                    // get current ids
+                                    var ids = _.reduce(_.values(accKeys), function (memo, item) {
+                                        memo[item._id] = 1;
+                                        return memo;
+                                    }, {})
+                                    // remove accounts that can't be reduced now
+                                    // accounts that have child or with level
+                                    // not covered by collapse
+                                    _.each(accKeys, function (item, id) {
+                                        delete ids[item.parentId];
+                                        if (item.level<=params.accLevel)
+                                            delete ids[id];
+                                        if (item.type!=params.accType)
+                                            delete ids[id];
+                                    })
+                                    // reduce
+                                    _.each(ids, function (v,id) {
+                                        var child = accKeys[id];
+                                        var parent = accKeys[child.parentId];
+                                        parent.summ+=child.summ;
+                                        parent.expand = 1;
+                                        if (child.periods) {
+                                            for (var i = 0 ; i<child.periods.length; i++) {
+                                                parent.periods[i].summ+=child.periods[i].summ;
+                                            }
+                                        }
+                                        delete accKeys[id];
+                                    })
+                                } while (_.size(ids)!=0);
+                                //filter by id and type
+                                if(_.isArray(params.accIds) && _.size(accKeys) != params.accIds.length){
+                                    accKeys = _.filter(accKeys, function(elem){
+                                        if (elem.expand)
+                                            return true;
+                                        return _.find(params.accIds, function(item){return _.isEqual(elem._id.toString(),item.toString())}
+                                        )});
+                                }
+                                accKeys = _(accKeys).reduce(function (memo, acc) {
+                                    if (acc.type == params.accType || acc.expand)
+                                        memo[acc._id] = acc;
+                                    return memo;
+                                }, {});
+                                cb2();
+                            }
+                        ],function(err){
+                            if(err) return cb1(err);
+                            cb1();
+                        });
+                    }
+                    else{
+                        //filter by id and type;
+                        if(_.isArray(params.accIds) && _.size(accKeys) != params.accIds.length){
+                            accKeys = _.filter(accKeys, function(elem){ return _.find(params.accIds, function(item){return _.isEqual(elem._id.toString(),item.toString())})});
+                        }
+                        accKeys = _(accKeys).reduce(function (memo, acc) {
+                            if (acc.type == params.accType)
+                                memo[acc._id] = acc;
+                            return memo;
+                        }, {});
+                        cb1();
+                    }
+                }))
+            },
+            function(cb1){
+                var total = 0;
+                // find important accounts (with biggest summ over entire period)
+                var iacs = _(accKeys).chain().map(function (acs) { return {_id:acs._id, summ:acs.summ}})
+                    .sortBy(function (acs) {return acs.summ}).last(params.maxAcc)
+                    .reduce(function (memo, acs) { memo[acs._id]=1; return memo; }, {}).value();
+                // colapse non important
+                var final = _(accKeys).reduce( function (memo, accKey) {
+                    total += accKey.summ;
+                    if (_(iacs).has(accKey._id))
+                        memo[accKey._id] = accKey;
+                    else {
+                        var other = memo['other'];
+                        if (other==null) {
+                            accKey.name = "Other";
+                            accKey._id = 'other';
+                            memo['other'] = accKey;
+                        } else {
+                            other.summ+=accKey.summ;
+                            if (periods)
+                                for(var i =0; i<other.periods.length; i++) {
+                                    other.periods[i].summ+=accKey.periods[i].summ;
+                                }
+                        }
+                    }
+                    return memo;
+                }, {});
+                // transform into report form
+                var report = _(final).reduce( function (memo,accKey) {
+                    var obj = {};
+                    if (periods){
+                        var obj = {name:accKey.name, data:_(accKey.periods).pluck('summ')}
+                    } else {
+                        obj = [accKey.name, accKey.summ];
+                    }
+                    memo.push(obj);
+                    return memo;
+                }, [])
+                cb1(null,report);
+
+            }
+        ], function (err, series) {
+            if(err) return cb(err);
+            if(type == 'pieflow')
+                series = {type:'pie', data: series};
+
+            cb(null,categories,series);
+
+            /*var data = {categories:JSON.stringify(categories), series:JSON.stringify(series)};
+            data[type] = 1;
+            cb(null, data);*/
+        });
+    }
 
 	// split date range into periods
 	function getPeriods (sd, ed) {
@@ -284,6 +319,8 @@ module.exports = function account(webapp) {
 				endDate:dfW3C.format(new Date(new Date().getFullYear(), 11, 31)),
 				accIsVisible:1,
 				accType:"EXPENSE",
+                accType2:"EXPENSE",
+                twoline:"off",
 				maxAcc:10,
 				reportName:reportName,
 				accIds:null,
