@@ -237,6 +237,8 @@ CashWeb.prototype.saveParams = function(apiToken, params, type, cb) {
 	var pid = "reports-" +type + "-" + params.reportName;
 	var settings = getDefaultSettings();
 	settings.accType = params.accType;
+    settings.accType2 = params.accType2;
+    settings.twoline = params.twoline;
 	settings.maxAcc = params.maxAcc;
 	settings.startDate = dfW3C.format(new Date(params.startDate));
 	settings.endDate = dfW3C.format(new Date(params.endDate));
@@ -273,6 +275,8 @@ function getDefaultSettings(reportName) {
 			endDate:dfW3C.format(new Date(new Date().getFullYear()-2, 11, 31)),
 			accIsVisible:1,
 			accType:"EXPENSE",
+            accType2:"EXPENSE",
+            twoline:"off",
 			maxAcc:10,
 			reportName:reportName,
 			accIds:null,
