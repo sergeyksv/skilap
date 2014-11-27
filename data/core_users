@@ -1,0 +1,6 @@
+{"k":"0000000078","o":"0000000205","v":"001"}
+{"_id":2,"_uid":2,"_dt":1417080671813,"_s":"78ea0a766eaa05545aa351a8683b1e2f"}
+{"firstName":"Андрей","lastName":"Пархоменко","login":"andre","timeZone":"3.0","language":"ru_RU","password":"phenix03","screenName":"Пархоменко А.","_id":{"$wrap":"$oid","v":2}}
+{"k":"0000000078","o":"0000000336","v":"001"}
+{"_id":2,"_uid":2,"_dt":1417080684148,"_s":"ab8da5c552887e02815de92ffd1ed720"}
+{"firstName":"Андрей","lastName":"Пархоменко","login":"andre","timeZone":"3.0","language":"ru_RU","password":"phenix03","_id":{"$wrap":"$oid","v":2},"permissions":["core.me.view","core.me.edit","core.user.view","core.user.edit","core.sysadmin","cash.view","cash.add","cash.edit"],"screenName":"Пархоменко А."}

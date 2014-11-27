@@ -1,0 +1,36 @@
+body {
+  padding-top: 60px;
+  padding-bottom: 40px;
+}
+#logoNew {
+  display: block;
+  float: left;
+  margin-right: 1em;
+  background: url("/common/img/skilap-logo-small.png") no-repeat scroll center center;
+  height: 40px;
+  width: 53px;
+}
+.centered {
+  text-align: center;
+}
+.clear {
+  clear: both;
+}
+.invisible {
+  display: none;
+}
+.no-margin-top {
+  margin-top: 0;
+}
+.ui-datepicker {
+  z-index: 3 !important;
+}
+.iframeContainer {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.iframeContainer iframe {
+  border: 1px solid transparent;
+  overflow: hidden;
+}
