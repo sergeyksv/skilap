@@ -1,0 +1,6 @@
+{"k":"0000000078","o":"0000000222","v":"001"}
+{"_id":2,"_uid":2,"_dt":1417080743177,"_s":"bdb22d6e4a1af2609d1dc06717601eb7"}
+{"_id":{"$wrap":"$oid","v":2},"cmdty":{"space":"ISO4217","id":"RUB"},"currency":{"space":"ISO4217","id":"EUR"},"date":{"$wrap":"$date","v":1339099200000,"h":"2012-06-07T20:00:00.000Z"},"source":"transaction","value":0.024}
+{"k":"0000000078","o":"0000000224","v":"001"}
+{"_id":3,"_uid":3,"_dt":1417080743178,"_s":"1beb9a950d783d0368f6ce4b7e12075f"}
+{"_id":{"$wrap":"$oid","v":3},"cmdty":{"space":"ISO4217","id":"RUB"},"currency":{"space":"ISO4217","id":"USD"},"date":{"$wrap":"$date","v":1339099200000,"h":"2012-06-07T20:00:00.000Z"},"source":"transaction","value":0.03273}
