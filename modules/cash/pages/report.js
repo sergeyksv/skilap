@@ -20,6 +20,10 @@ module.exports = function account(webapp) {
 	app.get(prefix + "/reports/pieflow", webapp.layout(), function (req, res, next ) {
 		report1(req, res, next, "pieflow");
 	});	
+	
+	app.get(prefix + "/reports/iebar", webapp.layout(), function (req, res, next ) {
+		report1(req, res, next, "iebar");
+	});	
 
 	function report1(req, res, next, type) {
 		if (!req.query || !req.query.name) {
@@ -58,7 +62,36 @@ module.exports = function account(webapp) {
 						if (err) console.log(err);
 					});
 				}
-				calculateGraphData(req.session.apiToken,type,reportSettings,cb1);
+				
+				if(type == 'iebar') {
+					async.series([
+						function (cb) {
+							reportSettings.accType = 'INCOME'
+							calculateGraphData(req.session.apiToken,type,reportSettings,cb);
+						},
+						function (cb) {
+							reportSettings.accType = 'EXPENSE'
+							calculateGraphData(req.session.apiToken,type,reportSettings,cb);
+						}
+					], function (err, rez) {
+						var rezdata = {
+								categories:rez[0].categories,
+								barflow:1
+							},
+								series = []
+						
+						for(var i=0;i<rez.length;i++) {
+							for(var j=0;j<rez[i].series.length;j++) {
+								series.push(rez[i].series[j])
+							}
+						}
+						
+						rezdata.series = JSON.stringify(series)
+						cb1(null, rezdata)
+					})
+				} else {
+					calculateGraphData(req.session.apiToken,type,reportSettings,cb1);
+				}
 			},
 			function(data_,cb1){				
 				data = data_;				
@@ -74,13 +107,14 @@ module.exports = function account(webapp) {
 			}],
 			next
 		);
-	};	
-
+	};
+	
 	function calculateGraphData(token, type, params, cb){
 		var periods=categories=null;
 		var accountsTree,accKeys;
 		switch(type){
 			case 'barflow':
+			case 'iebar':
 				periods = getPeriods(new Date(params.startDate), new Date(params.endDate));
 				categories = _.map(periods, function (p) { return (p.start.getMonth()+1)+"."+p.start.getFullYear();});
 			break;
@@ -243,12 +277,16 @@ module.exports = function account(webapp) {
 					var obj = {};
 					if (periods){
 						var obj = {name:accKey.name, data:_(accKey.periods).pluck('summ')}
+						if(type=='iebar') {
+							obj.stack = accKey.type
+						}
 					} else {
 						obj = [accKey.name, accKey.summ];
 					}
 					memo.push(obj);
 					return memo;
 				}, [])
+				
 				cb1(null,report);
 
 			}
@@ -257,7 +295,7 @@ module.exports = function account(webapp) {
 			if(type == 'pieflow')
 				series = {type:'pie', data: series};
 
-			var data = {categories:JSON.stringify(categories), series:JSON.stringify(series)};
+			var data = {categories:JSON.stringify(categories), series:type == 'iebar' ? series : JSON.stringify(series)};
 			data[type] = 1;
 			cb(null, data);
 		});

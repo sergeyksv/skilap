@@ -1,4 +1,4 @@
-node_modules
+node_modules*
 *.swp
 *.css
 data
@@ -12,3 +12,5 @@ snapshots
 chromedriver.log
 sauce_connect.log*
 build*
+.idea
+.nvmrc
