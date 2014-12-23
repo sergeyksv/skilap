@@ -2,6 +2,7 @@ define(["jquery","eventemitter2","safe", "jquery-block","bootstrap"], function (
 	var modal = function () {
 		var self = this;
 		var $modal = null;
+		self.iebar = false
 		this.hide = function () {
 			if ($modal)
 				$modal.modal('hide')
@@ -25,13 +26,17 @@ define(["jquery","eventemitter2","safe", "jquery-block","bootstrap"], function (
 							"cmd":"api",
 							"prm":["cash.web_getUseRangedCurrencies"],
 							"res":{"a":"store","v":"currencies"}
-						},
-						"accTypes":{
-							"cmd":"api",
-							"prm":["cash.getAssetsTypes"],
-							"res":{"a":"store","v":"accTypes"}
 						}
 					}
+					
+					if(!self.iebar) {
+						batch["accTypes"] = {
+							"cmd":"api",
+									"prm":["cash.getAssetsTypes"],
+									"res":{"a":"store","v":"accTypes"}
+						}
+					}
+					
 					api.batch(batch, safe.sure(cb, function (data) {
 						var curf = false;
 						_.forEach(data.currencies.used, function(curr){
@@ -92,6 +97,9 @@ define(["jquery","eventemitter2","safe", "jquery-block","bootstrap"], function (
 						})
 						data.settings.startDate = new moment.utc(data.settings.startDate).format("MM/DD/YYYY");
 						data.settings.endDate = new moment.utc(data.settings.endDate).format("MM/DD/YYYY");
+						if(self.iebar) {
+							data.iebar = true
+						}
 						tf.render('reportsettings', data, safe.sure(cb,function(text, ctx) {
 							self.emit('shown');
 							$("body").append(text);

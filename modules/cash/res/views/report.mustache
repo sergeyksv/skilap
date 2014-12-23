@@ -111,6 +111,9 @@ require(["jquery","jquery-block","highcharts"], function ($) {
 			(function (cb) {
 				require(['cash/reportsettings'], function (Modal) {
 					var modal = new Modal();
+					{{#iebar}}
+						modal.iebar = true
+					{{/iebar}}
 					modal.show();
 					modal.once('shown', function () { $me.unblock(); })
 					modal.once('result', function (type, acc) {

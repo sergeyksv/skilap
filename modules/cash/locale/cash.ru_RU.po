@@ -472,6 +472,9 @@ msgstr "Гистограмма доходов/расходов"
 msgid "Spend/receive pie chart"
 msgstr "Круговая диаграмма доходов/расходов"
 
+msgid "Income+Expence bar chart"
+msgstr "Гистограмма доход+расходы"
+
 #: ../modules/cash/lib/viewStrings.js:44
 msgid "Click and drag in the plot area to zoom in"
 msgstr "Кликните и тащите график для приближения"
@@ -722,6 +725,9 @@ msgstr "Движение средств (круг.)"
 #: ../modules/cash/pages/report.js:33
 msgid "Bar flow chart"
 msgstr "Движение средств (столб.)"
+
+msgid "Income and Expense chart"
+msgstr "Доходы и расходы вместе"
 
 #: ../modules/cash/pages/export.js:31
 #: ../modules/cash/pages/export.js:60
