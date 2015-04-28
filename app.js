@@ -1,7 +1,5 @@
 // require('look').start();
-//"Подгружаем" модуль "skilap-core" в переменную
 var main = require('skilap-core');
-//странный аргумент "automated" может отладка какая
 if (process.argv[2]=="automated") {
     process.on("message",function (msg) {
 		if (msg.c == "startapp") {

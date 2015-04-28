@@ -12,3 +12,4 @@ snapshots
 chromedriver.log
 sauce_connect.log*
 build*
+.idea
