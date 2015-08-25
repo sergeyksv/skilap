@@ -54,6 +54,10 @@ msgid "Interest"
 msgstr "Интерес"
 
 #: ../modules/cash/lib/accapi.js:321
+msgid "Income/Expense"
+msgstr "Доходы/Расходы"
+
+#: ../modules/cash/lib/accapi.js:321
 msgid "Assets sale"
 msgstr "Продажа вещей"
 
