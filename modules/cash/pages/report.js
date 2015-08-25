@@ -5,6 +5,8 @@ var async = require("async");
 var _ = require('underscore');
 var repCmdty = {space:"ISO4217",id:"RUB"};
 var safe = require('safe');
+var incomeOrExpense = /^INCOME|EXPENSE$/;
+	
 
 module.exports = function account(webapp) {
 	var app = webapp.web;
@@ -113,11 +115,13 @@ module.exports = function account(webapp) {
 							var acs = accKeys[split.accountId];
 							if (acs) {
 								var val = split.value*irate;
-								if (params.accType!=acs.type){
+								if (params.accType!=acs.type && 
+								!(params.accType == "INCOME_AND_EXPENSE" && incomeOrExpense.test(acs.type))){
 									acs.summ  = 0;
 									val = 0;
 								}
-								if (params.accType == "INCOME")
+								if (params.accType == "INCOME" || 
+								(params.accType == "INCOME_AND_EXPENSE" && acs.type == "INCOME"))
 									val *= -1;								
 								acs.summ += val;								
 								if (periods) {
@@ -134,6 +138,10 @@ module.exports = function account(webapp) {
 					})
 				},cb);
 			})(safe.sure(cb1, function () {
+
+				if(params.accType == 'INCOME_AND_EXPENSE')
+					params.accLevel= 'All';
+
 				//collapse accounts to accLevel
 				if(params.accLevel != 'All'){
 					async.series([
@@ -203,8 +211,10 @@ module.exports = function account(webapp) {
 						accKeys = _.filter(accKeys, function(elem){ return _.find(params.accIds, function(item){return _.isEqual(elem._id.toString(),item.toString())})});										
 					}						
 					accKeys = _(accKeys).reduce(function (memo, acc) {								
-						if (acc.type == params.accType)
+						if (acc.type == params.accType ||  
+						(params.accType == "INCOME_AND_EXPENSE" && incomeOrExpense.test(acc.type))){
 							memo[acc._id] = acc;					
+						}
 						return memo;
 					}, {});		
 					cb1();
@@ -219,15 +229,20 @@ module.exports = function account(webapp) {
 					.reduce(function (memo, acs) { memo[acs._id]=1; return memo; }, {}).value();
 				// colapse non important
 				var final = _(accKeys).reduce( function (memo, accKey) {
+
 					total += accKey.summ;
 					if (_(iacs).has(accKey._id))
 						memo[accKey._id] = accKey;
 					else {
-						var other = memo['other'];
+						var otherName= 'Other';
+						if(params.accType == "INCOME_AND_EXPENSE"){
+							otherName= accKey.type == "INCOME"? "+other" : "-other";
+						}
+						other = memo[otherName];
 						if (other==null) {
-							accKey.name = "Other";
-							accKey._id = 'other';
-							memo['other'] = accKey;
+							accKey.name = otherName;
+							accKey._id = otherName;
+							memo[otherName] = accKey;
 						} else {
 							other.summ+=accKey.summ;
 							if (periods)
@@ -246,6 +261,9 @@ module.exports = function account(webapp) {
 					} else {
 						obj = [accKey.name, accKey.summ];
 					}
+
+					if(params.accType == "INCOME_AND_EXPENSE") 
+						obj.stack= accKey.type;
 					memo.push(obj);
 					return memo;
 				}, [])

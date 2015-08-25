@@ -729,6 +729,8 @@ msgstr "Движение средств (столб.)"
 msgid "Raw import"
 msgstr "Родной импорт"
 
+msgid "Income and expense"
+msgstr "Доход и расход"
 #~ msgid "Receive"
 #~ msgstr "Получено"
 #~ msgid "Spend"

@@ -184,7 +184,8 @@ var assetInfo = {
 	"EXPENSE":{act:1},
 	"EQUITY":{act:1},
 	"RECIEVABLE":{act:-1},
-	"PAYABLE":{act:1}
+	"PAYABLE":{act:1},
+	"INCOME_AND_EXPENSE":{act:1}
 };
 
 CashApi.prototype.getAssetInfo = function (token, asset, cb) {
