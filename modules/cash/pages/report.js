@@ -98,11 +98,11 @@ module.exports = function account(webapp) {
 					if(periods)
 						memo[acc._id].periods = _(periods).map(function (p) { return _.clone(p); });
 					return memo;
-				}, {});		
+				}, {});	
 				cashapi.getTransactionsInDateRange(token,[params.startDate,params.endDate,true,false],cb1);
 			},
-			function(trns,cb1){			
-				(function (cb) {				
+			function(trns,cb1){	
+				(function (cb) {
 				async.forEach(trns, function (tr,cb) {
 					cashapi.getCmdtyPrice(token,tr.currency,{space:"ISO4217",id:params.reportCurrency},null,'safe',function(err,rate){
 						if(err && !(err.skilap && err.skilap.subject == "UnknownRate"))
@@ -113,12 +113,14 @@ module.exports = function account(webapp) {
 							var acs = accKeys[split.accountId];
 							if (acs) {
 								var val = split.value*irate;
-								if (params.accType!=acs.type){
+								if ((params.accType != acs.type) && checkIsIncomeExpense(acs.type, params.accType)){
 									acs.summ  = 0;
 									val = 0;
 								}
-								if (params.accType == "INCOME")
-									val *= -1;								
+								if (params.accType.toLowerCase() == "income" || 
+									(params.accType.toLowerCase() == 'income/expense' && acs.type.toLowerCase() == 'income')) {
+										val *= -1;	
+								}
 								acs.summ += val;								
 								if (periods) {
 									var d = tr.datePosted.valueOf();
@@ -130,6 +132,7 @@ module.exports = function account(webapp) {
 								}
 							}
 						});
+						
 						cb();
 					})
 				},cb);
@@ -160,20 +163,25 @@ module.exports = function account(webapp) {
 									delete ids[item.parentId];
 									if (item.level<=params.accLevel)
 										delete ids[id];
-									if (item.type!=params.accType)
-										delete ids[id];
+									if (item.type!=params.accType) {
+										if((params.accType.toLowerCase() == 'income/expense') 
+											&& (item.type.toLowerCase() == 'income' || item.type.toLowerCase() == 'expense')) {}
+										else delete ids[id];
+									} 
 								})
 								// reduce
 								_.each(ids, function (v,id) {
 									var child = accKeys[id];
-									var parent = accKeys[child.parentId];								
-									parent.summ+=child.summ;
-									parent.expand = 1;
-									if (child.periods) {
-										for (var i = 0 ; i<child.periods.length; i++) {
-											parent.periods[i].summ+=child.periods[i].summ;
-										}									
-									}
+									var parent = accKeys[child.parentId];
+									if (child.type == parent.type) {
+										parent.summ+=child.summ;
+										parent.expand = 1;
+										if (child.periods) {
+											for (var i = 0 ; i<child.periods.length; i++) {
+												parent.periods[i].summ+=child.periods[i].summ;
+											}									
+										}
+									}  
 									delete accKeys[id];
 								})
 							} while (_.size(ids)!=0);
@@ -186,10 +194,14 @@ module.exports = function account(webapp) {
 								)});										
 							}													
 							accKeys = _(accKeys).reduce(function (memo, acc) {								
-								if (acc.type == params.accType || acc.expand)
+								if (acc.type == params.accType || isIncomeExpense(acc.type) || acc.expand)
 									memo[acc._id] = acc;					
 								return memo;
-							}, {});		
+							}, {});	
+							function isIncomeExpense(type) {
+								return (params.accType.toLowerCase() == 'income/expense'
+										&& ((type.toLowerCase() == 'income') || (type.toLowerCase() == 'expense')));
+							}	
 							cb2();
 						}
 					],function(err){
@@ -197,71 +209,155 @@ module.exports = function account(webapp) {
 						cb1();
 					});
 				}
-				else{					
+				else {
 					//filter by id and type;
 					if(_.isArray(params.accIds) && _.size(accKeys) != params.accIds.length){
-						accKeys = _.filter(accKeys, function(elem){ return _.find(params.accIds, function(item){return _.isEqual(elem._id.toString(),item.toString())})});										
-					}						
+						accKeys = _.filter(accKeys, function(elem){ 
+							return _.find(params.accIds, function(item){
+								return _.isEqual(elem._id.toString(),item.toString())
+							})
+						});										
+					}
 					accKeys = _(accKeys).reduce(function (memo, acc) {								
-						if (acc.type == params.accType)
-							memo[acc._id] = acc;					
-						return memo;
-					}, {});		
+						if (params.accType.toLowerCase() === 'income/expense' &&
+						   (acc.type.toLowerCase() === 'income' || acc.type.toLowerCase() === 'expense')) {
+								memo[acc._id] = acc;	
+								return memo;
+						} else {
+							if (acc.type == params.accType)
+								memo[acc._id] = acc;	
+							return memo;
+						}
+					}, {});	
 					cb1();
 				}
 				}))
 			},
 			function(cb1){				
-				var total = 0;
-				// find important accounts (with biggest summ over entire period)
-				var iacs = _(accKeys).chain().map(function (acs) { return {_id:acs._id, summ:acs.summ}})
-					.sortBy(function (acs) {return acs.summ}).last(params.maxAcc)
-					.reduce(function (memo, acs) { memo[acs._id]=1; return memo; }, {}).value();
-				// colapse non important
-				var final = _(accKeys).reduce( function (memo, accKey) {
-					total += accKey.summ;
-					if (_(iacs).has(accKey._id))
-						memo[accKey._id] = accKey;
-					else {
-						var other = memo['other'];
-						if (other==null) {
-							accKey.name = "Other";
-							accKey._id = 'other';
-							memo['other'] = accKey;
-						} else {
-							other.summ+=accKey.summ;
-							if (periods)
-								for(var i =0; i<other.periods.length; i++) {
-									other.periods[i].summ+=accKey.periods[i].summ;
-								}
+				async.waterfall([
+						function prepareAccListByAccType(next) {
+							var result = {};
+							if (params.accType.toLowerCase() === 'income/expense') {
+								result = {
+									expense: [],
+									income: []
+								};
+								_(accKeys).each(function(acc) {
+									if (acc.type.toLowerCase() === 'income') result.income.push(acc);
+									if (acc.type.toLowerCase() === 'expense') result.expense.push(acc);
+								});
+							} else result[params.accType] = accKeys;
+							next(null, result);
+						},
+						function getImportantAccounts(accounts, next) {
+							var importantAccs = {};
+							_(accounts).each(function(singleTypeAcc, key){
+								importantAccs[key] =  _(singleTypeAcc).chain().map(function (acs) { return {_id:acs._id, summ:acs.summ}})
+									.sortBy(function (acs) {return acs.summ}).last(params.maxAcc)
+									.reduce(function (memo, acs) { memo[acs._id]=1; return memo; }, {}).value();
+							}); 
+							next(null, accounts, importantAccs);
+						},
+						function getDataPresentation(accounts, importantAccs, next) {
+							var result = {};
+							var total = 0;
+							var importantAccFilteredByType = {};
+							_(accounts).each(function(singleTypeAcc, type) {
+								  _(importantAccs).each(function(acc, accType){
+									if (accType == type) {
+										importantAccFilteredByType[type] = acc;
+									}
+								});
+								result[type] = _(singleTypeAcc).reduce( function (memo, accKey) {
+									if (_(importantAccFilteredByType[type]).has(accKey._id))
+										memo[accKey._id] = accKey;
+									else {
+										var other = memo['other'];
+										if (other == null) {
+											accKey.name = "Other";
+											accKey._id = 'other';
+											memo['other'] = accKey;
+										} else {
+											other.summ += accKey.summ;
+											if (periods)
+											for(var i =0; i<other.periods.length; i++) {
+												other.periods[i].summ+=accKey.periods[i].summ;
+											}
+										}
+									}	
+									return memo;
+								}, {});
+							});
+							next(null, result);
 						}
-					}
-					return memo;
-				}, {});
-				// transform into report form
-				var report = _(final).reduce( function (memo,accKey) {
-					var obj = {};
-					if (periods){
-						var obj = {name:accKey.name, data:_(accKey.periods).pluck('summ')}
-					} else {
-						obj = [accKey.name, accKey.summ];
-					}
-					memo.push(obj);
-					return memo;
-				}, [])
-				cb1(null,report);
-
+					],function(err, result) {
+						if (err) next("Error");
+						var report;
+						var data = {};
+						function getSeries(title, accKeys, periods) {
+							return _(accKeys).reduce( function (memo,accKey) {
+								var obj = {};
+								if (periods){
+									var obj = {name: accKey[title], data:_(accKey.periods).pluck('summ')}
+								} else {
+									obj = [accKey[title], accKey.summ];
+								}
+								memo.push(obj);
+								return memo;
+							},[]);
+						}
+						var _result = _(result);
+						_result.each(function(accKeys, keyType){
+							if (_result.size() === 1) {
+								report = getSeries("name", accKeys, periods);
+							} else {
+								if (!report) {
+									report = [];
+								};
+								data = getSeries("type", accKeys, periods);
+								report.push(sumCashByPeriods(data, periods.length));	
+								function sumCashByPeriods(arrs, countPeriods) {
+									var result = [];
+									var temp = 0;
+									for (var i = 0; i < countPeriods; i++) {
+										arrs.forEach(function(item){
+											temp += Math.abs(item.data[i]);
+										});
+										result.push(temp);
+										temp = 0;
+									};
+									return { 
+										name: ctx.i18n(token, 'cash', keyType[0].toUpperCase() + keyType.slice(1)), 
+										data: result 
+									};	
+								} 
+							}
+						});
+						// transform into report form
+						cb1(null,report);
+					});
 			}
 		], function (err, series) {
 			if(err) return cb(err);
+			var isStacking = isCustomTootip = params.accType.toLowerCase() === 'income/expense'? false : true;
 			if(type == 'pieflow')
 				series = {type:'pie', data: series};
-
-			var data = {categories:JSON.stringify(categories), series:JSON.stringify(series)};
+			var data = {
+				categories:JSON.stringify(categories),
+				series: JSON.stringify(series),
+				checkToolTip: isCustomTootip,
+				isStacking: isStacking.toString()
+			};
 			data[type] = 1;
 			cb(null, data);
 		});
 	}
+
+	function checkIsIncomeExpense(currentAccType, paramsAccType) {
+		return paramsAccType.toLowerCase() === 'income/expense' 
+			&& currentAccType.toLowerCase() !='income' 
+			&& currentAccType.toLowerCase() !='expense';
+	};
 
 	// split date range into periods
 	function getPeriods (sd, ed) {

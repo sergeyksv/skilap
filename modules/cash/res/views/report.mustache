@@ -1,5 +1,4 @@
 <div id="report" style="width: 100%; height: 700px;"></div>
-
 <script>
 require(["jquery","jquery-block","highcharts"], function ($) {
 	$(function() {
@@ -44,15 +43,17 @@ require(["jquery","jquery-block","highcharts"], function ($) {
 					credits: {
 						enabled: true
 					},
+					{{#if checkToolTip}}
 					tooltip: {
 						formatter: function() {
 							return '<b>'+this.series.name +'</b>: '+ this.y +'<br/>'+
 								 'Total: '+ this.point.stackTotal.toFixed(2);
 						}
 					},
+					{{/if}}
 					plotOptions: {
 						column: {
-							stacking: 'normal',
+							stacking: {{isStacking}},
 							dataLabels: {
 								enabled: false,
 								color: (Highcharts.theme && Highcharts.theme.dataLabelsColor) || 'white'
@@ -95,7 +96,7 @@ require(["jquery","jquery-block","highcharts"], function ($) {
 						}
 					}
 				},
-				series: [{{{series}}}]
+				series: {{{series}}}
 			});
 			{{/if}}
 		}
