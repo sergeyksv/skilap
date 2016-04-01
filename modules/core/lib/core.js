@@ -94,10 +94,8 @@ function Skilap(config_) {
 									al = "en-US";
 								var re = al.match(/\w\w-\w\w/i);
 								var guesslang = null;
-								if (re.length>0) {
-									user.language = re[0][0]+re[0][1]+'_'+re[0][3].toUpperCase()+re[0][4].toUpperCase();
-									modules['core'].api.saveUser(req.session.apiToken,user, function () {});
-								}
+								user.language = (re ? re[0].substr(0, 2)+'_'+re[0].substr(3, 2).toUpperCase() : 'en_US')
+								modules['core'].api.saveUser(req.session.apiToken,user, function () {});
 							}
 							if (user.password) delete user.password;
 							user.loggedin = user.type!='guest';
