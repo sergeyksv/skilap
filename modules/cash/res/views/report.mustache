@@ -98,6 +98,55 @@ require(["jquery","jquery-block","highcharts"], function ($) {
 				series: [{{{series}}}]
 			});
 			{{/if}}
+			
+			{{#if testflow}}
+				chart = new Highcharts.Chart({
+					chart: {
+						renderTo: 'report',
+						defaultSeriesType: 'column'
+					},
+					title: {
+						text: '{{reportSettings.reportName}}'
+					},
+					xAxis: {
+						categories: {{{categories}}}
+					},
+					yAxis: {
+						title: {
+							text: '{{reportSettings.accTypeName}}'
+						},
+						stackLabels: {
+							enabled: true,
+							style: {
+								fontWeight: 'bold',
+								color: (Highcharts.theme && Highcharts.theme.textColor) || 'gray'
+							},
+							formatter : function () {
+								return this.total.toFixed(2);
+							}
+						}
+					},
+					credits: {
+						enabled: true
+					},
+					tooltip: {
+						formatter: function() {
+							return '<b>'+this.series.name +'</b>: '+ this.y +'<br/>'+
+								 'Total: '+ this.point.stackTotal.toFixed(2);
+						}
+					},
+					plotOptions: {
+						column: {
+							stacking: 'normal',
+							dataLabels: {
+								enabled: false,
+								color: (Highcharts.theme && Highcharts.theme.dataLabelsColor) || 'white'
+							}
+						}
+					},
+					series: {{{series}}}					
+				});
+			{{/if}}			
 		}
 
 		setTimeout(createChart, 50);
