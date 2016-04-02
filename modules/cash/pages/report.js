@@ -21,6 +21,10 @@ module.exports = function account(webapp) {
 		report1(req, res, next, "pieflow");
 	});	
 
+	app.get(prefix + "/reports/inoutflow", webapp.layout(), function (req, res, next ) {
+		report1(req, res, next, "inoutflow");
+	});	
+
 	function report1(req, res, next, type) {
 		if (!req.query || !req.query.name) {
 			var ct = "Income statement";
@@ -28,6 +32,8 @@ module.exports = function account(webapp) {
 				ct = 'Pie flow chart';
 			else if (type == 'barflow')
 				ct = 'Bar flow chart';
+			else if (type == 'inoutflow')
+				ct = 'Income-expenses chart'
 
 			res.redirect(req.url + "?name=" +  ctx.i18n(req.session.apiToken, 'cash', ct));
 			return;
@@ -81,11 +87,19 @@ module.exports = function account(webapp) {
 		var accountsTree,accKeys;
 		switch(type){
 			case 'barflow':
+			case 'inoutflow':
 				periods = getPeriods(new Date(params.startDate), new Date(params.endDate));
 				categories = _.map(periods, function (p) { return (p.start.getMonth()+1)+"."+p.start.getFullYear();});
 			break;
 			case 'pieflow':
 			break;
+		}
+		function isAllowedType(accType, paramType, reportType) {
+			if (reportType == 'inoutflow') {
+				return accType == 'INCOME' || accType == 'EXPENSE';
+			} else {
+				return accType == paramType;
+			}
 		}
 		async.waterfall([
 			function (cb1) {
@@ -113,11 +127,11 @@ module.exports = function account(webapp) {
 							var acs = accKeys[split.accountId];
 							if (acs) {
 								var val = split.value*irate;
-								if (params.accType!=acs.type){
-									acs.summ  = 0;
+								if (!isAllowedType(acs.type, params.accType, type)) {
+									acs.summ = 0;
 									val = 0;
 								}
-								if (params.accType == "INCOME")
+								if ((type != 'inoutflow' && params.accType == 'INCOME') || (type == 'inoutflow' && acs.type == 'INCOME'))
 									val *= -1;								
 								acs.summ += val;								
 								if (periods) {
@@ -186,7 +200,7 @@ module.exports = function account(webapp) {
 								)});										
 							}													
 							accKeys = _(accKeys).reduce(function (memo, acc) {								
-								if (acc.type == params.accType || acc.expand)
+								if (isAllowedType(acc.type, params.accType, type) || acc.expand)
 									memo[acc._id] = acc;					
 								return memo;
 							}, {});		
@@ -203,7 +217,7 @@ module.exports = function account(webapp) {
 						accKeys = _.filter(accKeys, function(elem){ return _.find(params.accIds, function(item){return _.isEqual(elem._id.toString(),item.toString())})});										
 					}						
 					accKeys = _(accKeys).reduce(function (memo, acc) {								
-						if (acc.type == params.accType)
+						if (isAllowedType(acc.type, params.accType, type))
 							memo[acc._id] = acc;					
 						return memo;
 					}, {});		
@@ -242,7 +256,7 @@ module.exports = function account(webapp) {
 				var report = _(final).reduce( function (memo,accKey) {
 					var obj = {};
 					if (periods){
-						var obj = {name:accKey.name, data:_(accKey.periods).pluck('summ')}
+						var obj = {name:accKey.name, data:_(accKey.periods).pluck('summ'), stack:accKey.type}
 					} else {
 						obj = [accKey.name, accKey.summ];
 					}
@@ -259,6 +273,7 @@ module.exports = function account(webapp) {
 
 			var data = {categories:JSON.stringify(categories), series:JSON.stringify(series)};
 			data[type] = 1;
+			if (type == 'inoutflow') data['barflow'] = 1;
 			cb(null, data);
 		});
 	}
