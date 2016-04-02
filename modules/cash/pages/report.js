@@ -20,6 +20,10 @@ module.exports = function account(webapp) {
 	app.get(prefix + "/reports/pieflow", webapp.layout(), function (req, res, next ) {
 		report1(req, res, next, "pieflow");
 	});	
+	
+	app.get(prefix + "/reports/testflow", webapp.layout(), function (req, res, next ) {
+		report1(req, res, next, "testflow");
+	});
 
 	function report1(req, res, next, type) {
 		if (!req.query || !req.query.name) {
@@ -27,7 +31,9 @@ module.exports = function account(webapp) {
 			if (type == 'pieflow')
 				ct = 'Pie flow chart';
 			else if (type == 'barflow')
-				ct = 'Bar flow chart';
+				ct = 'Bar flow chart';			
+			else if (type == 'testflow') 
+				ct = 'My chart'
 
 			res.redirect(req.url + "?name=" +  ctx.i18n(req.session.apiToken, 'cash', ct));
 			return;
@@ -57,8 +63,27 @@ module.exports = function account(webapp) {
 					webapp.saveTabSettings(req.session.apiToken, pid, reportSettings, function(err){
 						if (err) console.log(err);
 					});
-				}
-				calculateGraphData(req.session.apiToken,type,reportSettings,cb1);
+				}				
+				
+				if (type == 'testflow') 
+					async.series([
+						function(cb2) {
+							reportSettings.accType = 'EXPENSE';
+							calculateGraphData(req.session.apiToken,type,reportSettings,cb2);
+						},
+						function(cb2) {
+							reportSettings.accType = 'INCOME';
+							calculateGraphData(req.session.apiToken,type,reportSettings,cb2);
+						}
+					],
+					function(err, results){
+						results[0].series = results[0].series.substr(0, results[0].series.length-1) + ','
+        	                                                  + results[1].series.substr(1, results[1].series.length-1);
+						cb1(err, results[0]);
+					})
+				else
+					calculateGraphData(req.session.apiToken,type,reportSettings,cb1);
+				
 			},
 			function(data_,cb1){				
 				data = data_;				
@@ -79,8 +104,9 @@ module.exports = function account(webapp) {
 	function calculateGraphData(token, type, params, cb){
 		var periods=categories=null;
 		var accountsTree,accKeys;
-		switch(type){
-			case 'barflow':
+		switch(type){			
+			case 'barflow':			
+			case 'testflow':
 				periods = getPeriods(new Date(params.startDate), new Date(params.endDate));
 				categories = _.map(periods, function (p) { return (p.start.getMonth()+1)+"."+p.start.getFullYear();});
 			break;
@@ -241,8 +267,8 @@ module.exports = function account(webapp) {
 				// transform into report form
 				var report = _(final).reduce( function (memo,accKey) {
 					var obj = {};
-					if (periods){
-						var obj = {name:accKey.name, data:_(accKey.periods).pluck('summ')}
+					if (periods){						
+						var obj = {name:accKey.name, data:_(accKey.periods).pluck('summ'), stack:accKey.type}
 					} else {
 						obj = [accKey.name, accKey.summ];
 					}
