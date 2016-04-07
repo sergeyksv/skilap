@@ -708,6 +708,10 @@ msgstr "Активы"
 msgid "Liabilities"
 msgstr "Обязательства"
 
+#: ../modules/cash/lib/viewStrings.js:125
+msgid "Spend/receive group bar chart"
+msgstr "Гистограмма доходов/расходов по группам"
+
 #: ../modules/cash/pages/import.js:14
 #: ../modules/cash/pages/import.js:43
 #: ../modules/cash/pages/import.js:91
@@ -722,6 +726,10 @@ msgstr "Движение средств (круг.)"
 #: ../modules/cash/pages/report.js:33
 msgid "Bar flow chart"
 msgstr "Движение средств (столб.)"
+
+#: ../modules/cash/pages/report.js:33
+msgid "group flow chart"
+msgstr "Движение средств (столб., груп.)"
 
 #: ../modules/cash/pages/export.js:31
 #: ../modules/cash/pages/export.js:60
