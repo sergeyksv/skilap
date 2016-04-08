@@ -59,16 +59,18 @@
 							<input class="span2" type="text" id="maxAcc" name="maxAcc" value="{{settings.maxAcc}}">
 						</div>
 					</div>
+					{{#if accTypeCtrlVisible}}
 					<div class="control-group">
-						<label class = "control-label">{{#i18n}}Account type{{/i18n}}:</label>
+						<label class = "control-label">{{#i18n}}Account type{{/i18n}}:</label>						
 						<div class="controls">
 							<select class="span2" name="accType" id="accType">
 								{{#accTypes}}
 								<option value="{{value}}" {{#if isSelected}}selected{{/if}} >{{name}}</option>
 								{{/accTypes}}
 							</select>
-						</div>
+						</div>						
 					</div>
+					{{/if}}
 				</div>
 				<div class="control-group tab-pane" id="currency">
 					<div  class="control-group">

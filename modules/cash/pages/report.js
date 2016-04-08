@@ -21,6 +21,10 @@ module.exports = function account(webapp) {
 		report1(req, res, next, "pieflow");
 	});	
 
+	app.get(prefix + "/reports/barflow2", webapp.layout(), function (req, res, next ) {
+		report1(req, res, next, "barflow2");
+	});	
+	
 	function report1(req, res, next, type) {
 		if (!req.query || !req.query.name) {
 			var ct = "Income statement";
@@ -28,7 +32,9 @@ module.exports = function account(webapp) {
 				ct = 'Pie flow chart';
 			else if (type == 'barflow')
 				ct = 'Bar flow chart';
-
+			else if (type == 'barflow2')
+				ct = 'Group flow chart';
+			
 			res.redirect(req.url + "?name=" +  ctx.i18n(req.session.apiToken, 'cash', ct));
 			return;
 		}
@@ -58,7 +64,29 @@ module.exports = function account(webapp) {
 						if (err) console.log(err);
 					});
 				}
-				calculateGraphData(req.session.apiToken,type,reportSettings,cb1);
+				if (type == 'barflow2') {
+					reportSettings.accType = "INCOME";
+					calculateGraphData( req.session.apiToken,type,reportSettings, 
+						function(dataIncome) {
+							reportSettings.accType = "EXPENSE";
+							calculateGraphData( req.session.apiToken,type,reportSettings, 
+								function(dataExpense){
+									var arrIn = JSON.parse(dataIncome.series);
+									var arrEx = JSON.parse(dataExpense.series);
+									var arrOut = {};
+									_.forEach(arrIn, function(o) {_(arrOut).push({name: o.name+'+', data: o.data, stack: '+'}) });
+									_.forEach(arrEx, function(o) {_(arrOut).push({name: o.name+'-', data: o.data, stack: '-'}) });
+									
+									dataExpense.series = JSON.stringify(arrOut);
+									cb1(null,dataExpense);
+								}
+							);
+						}					
+					);
+				} else {
+					calculateGraphData( req.session.apiToken,type,reportSettings, cb1);
+				}
+					
 			},
 			function(data_,cb1){				
 				data = data_;				
@@ -80,6 +108,7 @@ module.exports = function account(webapp) {
 		var periods=categories=null;
 		var accountsTree,accKeys;
 		switch(type){
+			case 'barflow2': //please don't set break at that place
 			case 'barflow':
 				periods = getPeriods(new Date(params.startDate), new Date(params.endDate));
 				categories = _.map(periods, function (p) { return (p.start.getMonth()+1)+"."+p.start.getFullYear();});
@@ -256,10 +285,12 @@ module.exports = function account(webapp) {
 			if(err) return cb(err);
 			if(type == 'pieflow')
 				series = {type:'pie', data: series};
-
 			var data = {categories:JSON.stringify(categories), series:JSON.stringify(series)};
 			data[type] = 1;
-			cb(null, data);
+			if (type == "barflow2")
+				cb(data);
+			else
+				cb(null, data);
 		});
 	}
 

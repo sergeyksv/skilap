@@ -91,7 +91,11 @@ define(["jquery","eventemitter2","safe", "jquery-block","bootstrap"], function (
 							}
 						})
 						data.settings.startDate = new moment.utc(data.settings.startDate).format("MM/DD/YYYY");
-						data.settings.endDate = new moment.utc(data.settings.endDate).format("MM/DD/YYYY");
+						data.settings.endDate   = new moment.utc(data.settings.endDate).format("MM/DD/YYYY");
+						wl = window.location.toString().toLowerCase();
+						if (wl.indexOf("/barflow2?")<0)
+							data["accTypeCtrlVisible"]=1;
+
 						tf.render('reportsettings', data, safe.sure(cb,function(text, ctx) {
 							self.emit('shown');
 							$("body").append(text);
