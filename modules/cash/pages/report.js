@@ -12,9 +12,11 @@ module.exports = function account(webapp) {
 	var prefix = webapp.prefix;
 	var ctx = webapp.ctx;
 	var reportSettingsVersion = 2;
-
+	
 	app.get(prefix + "/reports/barflow", webapp.layout(), function (req, res, next ) {
+		
 		report1(req, res, next, "barflow");
+		
 	});
 
 	app.get(prefix + "/reports/pieflow", webapp.layout(), function (req, res, next ) {
@@ -35,14 +37,18 @@ module.exports = function account(webapp) {
 
 		var pid = "reports-" + type + "-" + req.query.name;
 		var vtabs,data,reportSettings;
+		
 		async.waterfall([
 			function (cb1) {
 				async.series([
 					function(cb2) {
 						webapp.guessTab(req, {pid: pid, name:req.query.name, url:req.url}, cb2);
+						
 					},
 					function(cb2) {
+						
 						webapp.getTabSettings(req.session.apiToken, pid, cb2);
+						
 					}
 				],
 				function (err, results) {
@@ -51,26 +57,63 @@ module.exports = function account(webapp) {
 			},
 			function (vtabs_, reportSettings_, cb1) {				
 				vtabs = vtabs_;
+				
 				reportSettings = reportSettings_;
+				
 				if (_.isEmpty(reportSettings) || !reportSettings.version || (reportSettings.version != reportSettingsVersion)){
 					reportSettings = getDefaultSettings(req.query.name);		
 					webapp.saveTabSettings(req.session.apiToken, pid, reportSettings, function(err){
 						if (err) console.log(err);
 					});
 				}
-				calculateGraphData(req.session.apiToken,type,reportSettings,cb1);
+				
+				//////For new report: EXPENSE and INCOME
+				var old_accType;
+				async.series([
+					function(cb2) {
+						
+				if (reportSettings.accType=='EXP_AND_INC'){
+				reportSettings.accType='EXPENSE';
+				reportSettings.old_accType='EXP_AND_INC';
+				}
+						calculateGraphData(req.session.apiToken,type,reportSettings,cb2);
+						
+					},
+					function(cb2) {
+						if (reportSettings.old_accType=='EXP_AND_INC'){
+							reportSettings.accType='INCOME';
+						calculateGraphData(req.session.apiToken,type,reportSettings,cb2);
+						} else {
+							var data_11=null;
+							
+						cb2(null, data_11);
+						}
+						
+					}
+				],
+				function (err, results) {
+					if (!results[1])
+						results[1]=null;
+					cb1(null, results[0], results[1]);
+				});
+				/////
+				
 			},
-			function(data_,cb1){				
-				data = data_;				
+			function(data_,data_1,cb1){				
+				data = data_;
+				if (data_1!=null){ 								///
+				data.series_second = data_1.series;				///All for new report: EXPENSE and INCOME
+				} else { data.series_second = data_.series;}	///
 				cb1()
 			},
 			function(){										
 				data.tabs = vtabs;
 				data.pmenu = {name:req.query.name,
 					items:[{name:webapp.ctx.i18n(req.session.apiToken, 'cash','Page settings'),id:"settings",href:"#"}]}
+					
 				data.reportSettings = reportSettings;
-			
 				res.render(__dirname+"/../res/views/report", data);
+				
 			}],
 			next
 		);
@@ -79,12 +122,14 @@ module.exports = function account(webapp) {
 	function calculateGraphData(token, type, params, cb){
 		var periods=categories=null;
 		var accountsTree,accKeys;
+
 		switch(type){
 			case 'barflow':
 				periods = getPeriods(new Date(params.startDate), new Date(params.endDate));
 				categories = _.map(periods, function (p) { return (p.start.getMonth()+1)+"."+p.start.getFullYear();});
 			break;
 			case 'pieflow':
+
 			break;
 		}
 		async.waterfall([
@@ -260,6 +305,7 @@ module.exports = function account(webapp) {
 			var data = {categories:JSON.stringify(categories), series:JSON.stringify(series)};
 			data[type] = 1;
 			cb(null, data);
+			
 		});
 	}
 
@@ -275,6 +321,7 @@ module.exports = function account(webapp) {
 			ret.push({start:start, end:end, summ:0});
 			start = end;
 		}
+		
 		return ret;
 	}
 

@@ -74,6 +74,7 @@ CashWeb.prototype.guessTab = function (req, ti,cb) {
 			self._coreapi.getUser(req.session.apiToken, cb);
 		},
 		function (user_, cb) {
+			
 			if (user_.type=='guest')
 				cb(new SkilapError(self.ctx.i18n(req.session.apiToken, 'core', 'Access denied'),'AccessDenied'));
 			else
@@ -87,6 +88,7 @@ CashWeb.prototype.guessTab = function (req, ti,cb) {
 				cb(null,{});
 		},
 		safe.trap(function (views, cb) {
+			
 			if (views==null) views = {tabs:[], _id: user._id};			
 			var tab = null;
 			// search current tabs			
@@ -111,7 +113,9 @@ CashWeb.prototype.guessTab = function (req, ti,cb) {
 			} else
 				cb();
 		})], safe.sure_result(cb, function (results) {
+			
 			return vtabs;
+			
 		})
 	);
 };
@@ -168,12 +172,14 @@ CashWeb.prototype.saveTabSettings = function(token, tabId, settings, cb) {
 
 CashWeb.prototype.getTabSettings = function(token, tabId, cb) {
 	var self = this;
+	
 	async.waterfall ([
 		// we need user first
 		function (cb) {
 			self._coreapi.getUser(token, cb);
 		},
 		function (user, cb) {
+			
 			self._cash_userviews.findOne({'_id': user._id} ,cb);
 		},
 		function (views, cb) {
@@ -187,6 +193,7 @@ CashWeb.prototype.getTabSettings = function(token, tabId, cb) {
 			cb(null, ret);
 		})
 	);
+	
 };
 
 CashWeb.prototype.getUseRangedCurrencies = function(token, cb) {
