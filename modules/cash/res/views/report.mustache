@@ -1,4 +1,5 @@
-<div id="report" style="width: 100%; height: 700px;"></div>
+<div id="report" style="width: 100%; height: 350px;"></div>
+<div id="report1" style="width: 100%"></div>
 
 <script>
 require(["jquery","jquery-block","highcharts"], function ($) {
@@ -6,7 +7,7 @@ require(["jquery","jquery-block","highcharts"], function ($) {
 		$("#container").addClass("ready");
 		var chart;
 		function adaptHeight() {
-			$("#report").height($(window).height()-$(".navbar.navbar-fixed-top").height()-20);
+			$("#report").height($(window).height()-$(".navbar.navbar-fixed-top").height()-350);
 		}
 		$(window).resize(function(){
 			adaptHeight();
@@ -20,6 +21,7 @@ require(["jquery","jquery-block","highcharts"], function ($) {
 						renderTo: 'report',
 						defaultSeriesType: 'column'
 					},
+					
 					title: {
 						text: '{{reportSettings.reportName}}'
 					},
@@ -59,8 +61,10 @@ require(["jquery","jquery-block","highcharts"], function ($) {
 							}
 						}
 					},
-					series: {{{series}}}
+					series: {{{series}}},
+					
 				});
+			
 			{{/if}}
 
 			{{#if pieflow}}
@@ -100,7 +104,112 @@ require(["jquery","jquery-block","highcharts"], function ($) {
 			{{/if}}
 		}
 
+		
+		function createChart_new() {
+		
+		
+		//alert('');
+		
+			{{#if barflow}}
+				chart = new Highcharts.Chart({
+					chart: {
+						renderTo: 'report1',
+						defaultSeriesType: 'column'
+					},
+					
+					title: {
+						text: '{{reportSettings.accType}}'
+					},
+					xAxis: {
+						categories: {{{categories}}}
+					},
+					yAxis: {
+						title: {
+						
+							text: '{{reportSettings.accTypeName}}'
+						},
+						stackLabels: {
+							enabled: true,
+							style: {
+								fontWeight: 'bold',
+								color: (Highcharts.theme && Highcharts.theme.textColor) || 'gray'
+							},
+							formatter : function () {
+								return this.total.toFixed(2);
+							}
+						}
+					},
+					credits: {
+						enabled: true
+					},
+					tooltip: {
+						formatter: function() {
+							return '<b>'+this.series.name +'</b>: '+ this.y +'<br/>'+
+								 'Total: '+ this.point.stackTotal.toFixed(2);
+						}
+					},
+					plotOptions: {
+						column: {
+							stacking: 'normal',
+							dataLabels: {
+								enabled: false,
+								color: (Highcharts.theme && Highcharts.theme.dataLabelsColor) || 'white'
+							}
+						}
+					},
+					series: {{{series_second}}},
+					
+				});
+			
+			{{/if}}
+
+			{{#if pieflow}}
+			chart = new Highcharts.Chart({
+				chart: {
+					renderTo: 'report',
+					plotBackgroundColor: null,
+					plotBorderWidth: null,
+					plotShadow: false
+				},
+				title: {
+					text: '{{reportSettings.reportName}}'
+				},
+				tooltip: {
+					formatter: function() {
+						return '<b>'+this.point.name +'</b>: '+ this.percentage.toFixed(2) +' % ('+ this.y.toFixed(2)+')';
+
+					}
+				},
+				plotOptions: {
+					pie: {
+						allowPointSelect: true,
+						cursor: 'pointer',
+						showInLegend: true,
+						dataLabels: {
+							enabled: true,
+							color: '#000000',
+							connectorColor: '#000000',
+							formatter: function() {
+								return '<b>'+ this.point.name +'</b>: '+ this.percentage.toFixed(2) +' % ('+ this.y.toFixed(2)+')';
+							}
+						}
+					}
+				},
+				series: [{{{series_second}}}]
+			});
+			{{/if}}
+			
+		}
+		
+
+		
 		setTimeout(createChart, 50);
+		var AccTt = '{{reportSettings.old_accType}}';
+		if(AccTt=='EXP_AND_INC'){
+		setTimeout(createChart_new, 50);
+		}
+		
+		
 
 		var $page = $("body");
 		$("#page_menu #settings").on("click",function(evt){

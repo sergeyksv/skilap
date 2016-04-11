@@ -132,11 +132,13 @@ require(["jquery","jquery-block","bootstrap-datepicker"],function($){
 		$form.on('click', "#save", function (event) {
 			event.preventDefault();
 			$form.block();
+			
 			(function(cb) {
 				var accIds = [];
 				$(".settingsForm .accountTreeItem .name.selected").each(function(index,item){
 					accIds.push($(item).parent().data('accountid'));
 				});
+				
 				var tparams = $(".settingsForm").serializeArray();
 				var params = {};
 				_.forEach(tparams, function(elem){
@@ -149,6 +151,7 @@ require(["jquery","jquery-block","bootstrap-datepicker"],function($){
 				require(["api","safe"], function (api,safe) {
 					api.call('cash.web_saveParams', params, type, safe.sure(cb, function (ret) {
 						location.href = ret;
+						
 					}))
 				},cb)
 			})(function (err) {

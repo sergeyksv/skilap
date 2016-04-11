@@ -40,6 +40,7 @@ msgstr "Кредитные карты"
 msgid "My card"
 msgstr "Моя карта"
 
+
 #: ../modules/cash/lib/accapi.js:321
 #: ../modules/cash/lib/accapi.js:399
 msgid "Income"
@@ -280,6 +281,11 @@ msgstr "К получению"
 #: ../modules/cash/lib/accapi.js:403
 msgid "Payable"
 msgstr "К оплате"
+
+#: ../modules/cash/lib/accapi.js:403
+#: For new report!!!
+msgid "NEW_report"
+msgstr "Доходы и расходы"
 
 #: ../modules/cash/lib/webapp.js:239
 msgid "View cash data"
