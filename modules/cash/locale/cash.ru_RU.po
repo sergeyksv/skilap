@@ -265,6 +265,10 @@ msgstr "Инвест фонд"
 msgid "Curency"
 msgstr "Валюта"
 
+#: ../modules/cash/lib/accapi.js:371
+msgid "Income expense"
+msgstr "Доход/Расход"
+
 #: ../modules/cash/lib/accapi.js:400
 msgid "Expense"
 msgstr "Расходы"
