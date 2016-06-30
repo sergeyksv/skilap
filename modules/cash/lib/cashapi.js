@@ -180,6 +180,7 @@ var assetInfo = {
 	"STOCK":{act:1},
 	"MUTUAL":{act:1},
 	"CURENCY":{act:1},
+	"INCOME_EXPENSE":{act:-1},
 	"INCOME":{act:-1},
 	"EXPENSE":{act:1},
 	"EQUITY":{act:1},
