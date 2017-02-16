@@ -167,7 +167,7 @@ CashApi.prototype.init = function (cb) {
 		function (cb) {
 			self._calcStats(cb);
 		}
-		], 
+		],
 	cb);
 };
 
@@ -184,7 +184,8 @@ var assetInfo = {
 	"EXPENSE":{act:1},
 	"EQUITY":{act:1},
 	"RECIEVABLE":{act:-1},
-	"PAYABLE":{act:1}
+	"PAYABLE":{act:1},
+	"INCOME_EXPENSE":{act:1}
 };
 
 CashApi.prototype.getAssetInfo = function (token, asset, cb) {
@@ -196,7 +197,7 @@ CashApi.prototype.getAssetInfo = function (token, asset, cb) {
 
 CashApi.prototype._calcStats = function _calcStats(cb) {
 	var self = this;
-	var _stats = {};	
+	var _stats = {};
 	// helper functions
 	function getAccStats (accId) {
 		if (_stats[accId]==null)
@@ -309,7 +310,7 @@ CashApi.prototype._calcStats = function _calcStats(cb) {
 						delete dirTree._id;
 						self._cash_prices_stat.update({ key: dir.key }, dirTree, { upsert: true, w: 1 }, cb);
 					}));
-				}, function () { return stop; }, function() { 
+				}, function () { return stop; }, function() {
 					if (!_.isEmpty(keys))
 						self._cash_prices_stat.remove({ key: {$nin: _.values(key) }}, cb);
 					else
@@ -393,7 +394,7 @@ CashApi.prototype._calcStats = function _calcStats(cb) {
 			else cb();
 		}],
 		remove_old_reg: ['account_save', function (cb) {
-			console.time("remove_old_reg");		
+			console.time("remove_old_reg");
 			if (skip_calc) return cb();
 			if (regToDelete) {
 				self._cash_register.remove({'_id': {$in: _.values(regToDelete)}}, {w: 1}, cb);
@@ -402,8 +403,8 @@ CashApi.prototype._calcStats = function _calcStats(cb) {
 		}]
 		}, function done (err) {
 			if (err) console.log(err);
-			console.timeEnd("remove_old_reg");			
-			console.timeEnd("Stats");			
+			console.timeEnd("remove_old_reg");
+			console.timeEnd("Stats");
 			cb();
 		}
 	);
@@ -411,7 +412,7 @@ CashApi.prototype._calcStats = function _calcStats(cb) {
 
 CashApi.prototype._calcPath = function (accIds, cb) {
 	var self = this;
-	var _stats = {};	
+	var _stats = {};
 	// helper functions
 	function getAccStats (accId) {
 		if (_stats[accId]==null)
@@ -470,7 +471,7 @@ CashApi.prototype._calcPath = function (accIds, cb) {
 		}]
 		}, function done (err) {
 			if (err) console.log(err);
-			console.timeEnd("Stats Path");			
+			console.timeEnd("Stats Path");
 			cb();
 		}
 	);
@@ -478,7 +479,7 @@ CashApi.prototype._calcPath = function (accIds, cb) {
 
 CashApi.prototype._calcStatsPartial = function (accIds, minDate, cb) {
 	var self = this;
-	var _stats = {};	
+	var _stats = {};
 	// helper functions
 	function getAccStats (accId) {
 		if (_stats[accId]==null)
@@ -547,7 +548,7 @@ CashApi.prototype._calcStatsPartial = function (accIds, minDate, cb) {
 			self._cash_transactions.find(q).toArray(safe.sure(cb, function(trs) {
 				console.time("Sort");
 				trs.sort(function(a, b) {
-					if (a.datePosted.getTime() != b.datePosted.getTime()) 
+					if (a.datePosted.getTime() != b.datePosted.getTime())
 						return a.datePosted.getTime() - b.datePosted.getTime();
 					if (a._id.toString() == b._id.toString())
 						return 0;
@@ -617,7 +618,7 @@ CashApi.prototype._calcStatsPartial = function (accIds, minDate, cb) {
 		}]
 		}, function done (err) {
 			if (err) console.log(err);
-			console.timeEnd("Stats Partial");			
+			console.timeEnd("Stats Partial");
 			cb();
 		}
 	);
@@ -632,7 +633,7 @@ CashApi.prototype._calcPriceStatsAdd = function (prices, cb) {
 	});
 	self._cash_prices_stat.find({'key': {$in: _.keys(priceMap)}}).toArray(safe.sure(cb, function (stats) {
 		_.each(stats, function(stat) {
-			priceMap[stat.key].stat = stat; 
+			priceMap[stat.key].stat = stat;
 		});
 		_.each(_.keys(priceMap), function(key) {
 			if (priceMap[key].stat) {
@@ -717,7 +718,7 @@ CashApi.prototype._calcPriceStatsPartial = function (cmdty, currency, cb) {
 		}, function () { return stop; }, function() {
 			if (!bFound)
 				self._cash_prices_stat.remove({key: {$in:key}}, cb);
-			else 
+			else
 				cb();
 		});
 	}));
