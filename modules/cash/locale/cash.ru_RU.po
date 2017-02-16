@@ -19,6 +19,10 @@ msgstr "Дисбаланс"
 msgid "Cash"
 msgstr "Наличность"
 
+#: ../modules/cash/lib/accapi.js:376
+msgid "Income/Expense"
+msgstr "Доходы/Расходы"
+
 #: ../modules/cash/lib/accapi.js:318
 msgid "My wallet"
 msgstr "Мой кошелек"
@@ -745,4 +749,3 @@ msgstr "Родной импорт"
 #~ msgstr "СкайЛап"
 #~ msgid "Import"
 #~ msgstr "Импорт"
-
