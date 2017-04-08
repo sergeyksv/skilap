@@ -307,7 +307,7 @@ module.exports.getDefaultAccounts = function (token, cmdty, cb){
 		{name:ctx.i18n(token, 'cash', 'Real assets'), type:'EXPENSE', ch:[ctx.i18n(token, 'cash', 'Transport'), ctx.i18n(token, 'cash', 'Furniture'), ctx.i18n(token, 'cash', 'Estate'), ctx.i18n(token, 'cash', 'Goods'), ctx.i18n(token, 'cash', 'Insurance'), ctx.i18n(token, 'cash', 'Other')]},
 		{name:ctx.i18n(token, 'cash', 'Recreation'), type:'EXPENSE', ch:[ctx.i18n(token, 'cash', 'Travel'), ctx.i18n(token, 'cash', 'Pleasures'), ctx.i18n(token, 'cash', 'Food & drinks'), ctx.i18n(token, 'cash', 'Events'), ctx.i18n(token, 'cash', 'Other')]},
 		{name:ctx.i18n(token, 'cash', 'Accidental'), type:'EXPENSE', ch:[ctx.i18n(token, 'cash', 'Stolen'), ctx.i18n(token, 'cash', 'Gifts'), ctx.i18n(token, 'cash', 'Bad debts'), ctx.i18n(token, 'cash', 'Other')]},
-		{name:ctx.i18n(token, 'cash', 'Debts'), type:'EQUITY', ch:[ctx.i18n(token, 'cash', 'Friends')]}
+		{name:ctx.i18n(token, 'cash', 'Debts'), type:'EQUITY', ch:[ctx.i18n(token, 'cash', 'Friends')]},
 	];
 
 	var ret = [];
@@ -372,7 +372,8 @@ module.exports.getAssetsTypes = function (token,cb) {
 			{value:"EXPENSE", name:self._ctx.i18n(token, 'cash', 'Expense'),act:1,recv:self._ctx.i18n(token, 'cash', 'Received'),send:self._ctx.i18n(token, 'cash', 'Spent')},
 			{value:"EQUITY", name:self._ctx.i18n(token, 'cash', 'Equity'),act:1,recv:self._ctx.i18n(token, 'cash', 'Received'),send:self._ctx.i18n(token, 'cash', 'Spent')},
 			{value:"RECIEVABLE", name:self._ctx.i18n(token, 'cash', 'Recievable'),act:-1,recv:self._ctx.i18n(token, 'cash', 'Received'),send:self._ctx.i18n(token, 'cash', 'Spent')},
-			{value:"PAYABLE", name:self._ctx.i18n(token, 'cash', 'Payable'),act:1,recv:self._ctx.i18n(token, 'cash', 'Received'),send:self._ctx.i18n(token, 'cash', 'Spent')}
+			{value:"PAYABLE", name:self._ctx.i18n(token, 'cash', 'Payable'),act:1,recv:self._ctx.i18n(token, 'cash', 'Received'),send:self._ctx.i18n(token, 'cash', 'Spent')},
+			{value:"MYBALANCE", name:self._ctx.i18n(token, 'cash', 'My Balance'),act:1,recv:self._ctx.i18n(token, 'cash', 'Received'),send:self._ctx.i18n(token, 'cash', 'Spent')}	//bystrov: added new AssetsType
 		];
 	cb (null, types);
 };

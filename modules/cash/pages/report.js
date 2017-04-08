@@ -2,9 +2,11 @@ var DateFormat = require('dateformatjs').DateFormat;
 var df = new DateFormat("MM/dd/yyyy");
 var dfW3C = new DateFormat(DateFormat.W3C);
 var async = require("async");
+var async = require("async");
 var _ = require('underscore');
 var repCmdty = {space:"ISO4217",id:"RUB"};
 var safe = require('safe');
+
 
 module.exports = function account(webapp) {
 	var app = webapp.web;
@@ -19,7 +21,7 @@ module.exports = function account(webapp) {
 
 	app.get(prefix + "/reports/pieflow", webapp.layout(), function (req, res, next ) {
 		report1(req, res, next, "pieflow");
-	});	
+	});
 
 	function report1(req, res, next, type) {
 		if (!req.query || !req.query.name) {
@@ -28,7 +30,6 @@ module.exports = function account(webapp) {
 				ct = 'Pie flow chart';
 			else if (type == 'barflow')
 				ct = 'Bar flow chart';
-
 			res.redirect(req.url + "?name=" +  ctx.i18n(req.session.apiToken, 'cash', ct));
 			return;
 		}
@@ -46,25 +47,86 @@ module.exports = function account(webapp) {
 					}
 				],
 				function (err, results) {
-					cb1(null, results[0], results[1]);
+                    cb1(null, results[0], results[1]);
 				});
 			},
 			function (vtabs_, reportSettings_, cb1) {				
 				vtabs = vtabs_;
 				reportSettings = reportSettings_;
 				if (_.isEmpty(reportSettings) || !reportSettings.version || (reportSettings.version != reportSettingsVersion)){
-					reportSettings = getDefaultSettings(req.query.name);		
+					reportSettings = getDefaultSettings(req.query.name);
 					webapp.saveTabSettings(req.session.apiToken, pid, reportSettings, function(err){
 						if (err) console.log(err);
 					});
 				}
-				calculateGraphData(req.session.apiToken,type,reportSettings,cb1);
+                //bystrov: added type for combined report 63 - 96; replace 98 - 125
+                 if (reportSettings.accType == "MYBALANCE") {
+
+					 /* for combined report:
+					 /	first calculate income
+					 /	and expenses than
+					 /
+					  */
+					 async.series([
+                     	function (cb1) {
+                        	reportSettings.accType = "INCOME";
+                          	calculateGraphData(req.session.apiToken, type, reportSettings, cb1);
+						},
+                        function (cb1) {
+                        	reportSettings.accType = "EXPENSE";
+                        	calculateGraphData(req.session.apiToken, type, reportSettings, cb1);
+						}
+						],
+                        function (err, final_) {
+                      		var finalIncome = final_[0][0];
+                            var finalExpanse = final_[1][0];
+
+                     		var final = finalIncome;
+							final = _.extend(final, finalExpanse);	// combinate income and expense data
+							var periods = final_[0];
+
+							periods.splice(0,1);
+							cb1(null, final, periods);
+                         })
+                 }
+                 else {
+					// for single "old" reports
+                     calculateGraphData(req.session.apiToken, type, reportSettings, cb1);
+                 }
 			},
-			function(data_,cb1){				
-				data = data_;				
-				cb1()
-			},
-			function(){										
+
+			function (final_, periods_, cb1) {
+
+				//create report - replace from calculateGraphData
+
+				var final = final_;
+				var periods = periods_;
+
+                var report = _(final).reduce(function (memo, accKey) {
+                    var obj = {};
+                    if (periods) {
+                        // var obj = {name:accKey.name, data:_(accKey.periods).pluck('summ')}						//original - without stack
+                        var obj = {name: accKey.name, data: _(accKey.periods).pluck('summ'), stack: accKey.mystack}		//bystrov: added stack
+                    } else {
+                        obj = [accKey.name, accKey.summ];
+                    }
+                    memo.push(obj);
+                    return memo;
+                }, [])
+                cb1(null, report);
+
+            },
+        		function (series, cb) {
+                        if(type == 'pieflow')
+                        	series = {type:'pie', data: series};
+
+                        var data = {categories:JSON.stringify(categories), series:JSON.stringify(series)};
+                        data[type] = 1;
+                        cb(null, data);
+                    },
+			function (data_) {
+
+				var data = data_;
 				data.tabs = vtabs;
 				data.pmenu = {name:req.query.name,
 					items:[{name:webapp.ctx.i18n(req.session.apiToken, 'cash','Page settings'),id:"settings",href:"#"}]}
@@ -77,6 +139,7 @@ module.exports = function account(webapp) {
 	};	
 
 	function calculateGraphData(token, type, params, cb){
+
 		var periods=categories=null;
 		var accountsTree,accKeys;
 		switch(type){
@@ -91,18 +154,21 @@ module.exports = function account(webapp) {
 			function (cb1) {
 				cashapi.getAllAccounts(token, cb1);
 			},
-			function (accounts, cb1) {					
-				//here not filter accounts yet 
-				accKeys = _(accounts).reduce(function (memo, acc) {					
-					memo[acc._id] = {name:acc.name, _id:acc._id, parentId:acc.parentId,summ:0,type:acc.type};
+			function (accounts, cb1) {
+				//here not filter accounts yet
+
+                var mystack = params.accType;			//bystrov: added stack param
+
+                accKeys = _(accounts).reduce(function (memo, acc) {
+					memo[acc._id] = {name:acc.name, _id:acc._id, parentId:acc.parentId,summ:0,type:acc.type, mystack:mystack};
 					if(periods)
 						memo[acc._id].periods = _(periods).map(function (p) { return _.clone(p); });
 					return memo;
-				}, {});		
+				}, {});
 				cashapi.getTransactionsInDateRange(token,[params.startDate,params.endDate,true,false],cb1);
 			},
-			function(trns,cb1){			
-				(function (cb) {				
+			function(trns,cb1){
+				(function (cb) {
 				async.forEach(trns, function (tr,cb) {
 					cashapi.getCmdtyPrice(token,tr.currency,{space:"ISO4217",id:params.reportCurrency},null,'safe',function(err,rate){
 						if(err && !(err.skilap && err.skilap.subject == "UnknownRate"))
@@ -111,15 +177,16 @@ module.exports = function account(webapp) {
 							var irate = rate;
 						_.forEach(tr.splits, function(split) {
 							var acs = accKeys[split.accountId];
-							if (acs) {
+                            if (acs) {
 								var val = split.value*irate;
 								if (params.accType!=acs.type){
 									acs.summ  = 0;
 									val = 0;
 								}
-								if (params.accType == "INCOME")
-									val *= -1;								
-								acs.summ += val;								
+								if (params.accType == "INCOME") {
+                                    val *= -1;
+                                }
+								acs.summ += val;
 								if (periods) {
 									var d = tr.datePosted.valueOf();
 									_.forEach(acs.periods, function (p) {
@@ -158,7 +225,7 @@ module.exports = function account(webapp) {
 								// not covered by collapse
 								_.each(accKeys, function (item, id) {
 									delete ids[item.parentId];
-									if (item.level<=params.accLevel)
+                                    if (item.level<=params.accLevel)
 										delete ids[id];
 									if (item.type!=params.accType)
 										delete ids[id];
@@ -201,10 +268,10 @@ module.exports = function account(webapp) {
 					//filter by id and type;
 					if(_.isArray(params.accIds) && _.size(accKeys) != params.accIds.length){
 						accKeys = _.filter(accKeys, function(elem){ return _.find(params.accIds, function(item){return _.isEqual(elem._id.toString(),item.toString())})});										
-					}						
-					accKeys = _(accKeys).reduce(function (memo, acc) {								
+					}
+					accKeys = _(accKeys).reduce(function (memo, acc) {
 						if (acc.type == params.accType)
-							memo[acc._id] = acc;					
+							memo[acc._id] = acc;
 						return memo;
 					}, {});		
 					cb1();
@@ -238,28 +305,13 @@ module.exports = function account(webapp) {
 					}
 					return memo;
 				}, {});
-				// transform into report form
-				var report = _(final).reduce( function (memo,accKey) {
-					var obj = {};
-					if (periods){
-						var obj = {name:accKey.name, data:_(accKey.periods).pluck('summ')}
-					} else {
-						obj = [accKey.name, accKey.summ];
-					}
-					memo.push(obj);
-					return memo;
-				}, [])
-				cb1(null,report);
 
+				//bystrov: replace report generator to report1
+				cb1(null, final, periods);
 			}
-		], function (err, series) {
-			if(err) return cb(err);
-			if(type == 'pieflow')
-				series = {type:'pie', data: series};
+             ], function (err, final, periods) {
 
-			var data = {categories:JSON.stringify(categories), series:JSON.stringify(series)};
-			data[type] = 1;
-			cb(null, data);
+			cb(null, final, periods);
 		});
 	}
 
@@ -294,4 +346,4 @@ module.exports = function account(webapp) {
 			};
 		return defaultSettings;
 	}	
-}
+};
