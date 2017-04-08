@@ -184,7 +184,8 @@ var assetInfo = {
 	"EXPENSE":{act:1},
 	"EQUITY":{act:1},
 	"RECIEVABLE":{act:-1},
-	"PAYABLE":{act:1}
+	"PAYABLE":{act:1},
+	"MYBALANCE":{act:1}	//Bystrov: added new assetInfo
 };
 
 CashApi.prototype.getAssetInfo = function (token, asset, cb) {

@@ -318,3 +318,8 @@ msgstr ""
 #: ../modules/cash/pages/index.js:53
 msgid "Home"
 msgstr ""
+
+#: ../modules/cash/lib/accapi.js:311
+#:  ../modules/cash/lib/accapi.js:377
+msgid "My Balance"
+msgstr ""

@@ -729,6 +729,11 @@ msgstr "Движение средств (столб.)"
 msgid "Raw import"
 msgstr "Родной импорт"
 
+#: ../modules/cash/lib/accapi.js:311
+#:  ../modules/cash/lib/accapi.js:377
+msgid "My Balance"
+msgstr "Мой баланс"
+
 #~ msgid "Receive"
 #~ msgstr "Получено"
 #~ msgid "Spend"
