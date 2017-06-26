@@ -113,12 +113,13 @@ module.exports = function account(webapp) {
 							var acs = accKeys[split.accountId];
 							if (acs) {
 								var val = split.value*irate;
-								if (params.accType!=acs.type){
+								if ((params.accType == 'EXPINC' && (acs.type!='INCOME' && acs.type!='EXPENSE')) || (params.accType != 'EXPINC' && params.accType!=acs.type) ){
 									acs.summ  = 0;
 									val = 0;
 								}
-								if (params.accType == "INCOME")
-									val *= -1;								
+								if (params.accType == "INCOME" || params.accType == 'EXPINC'){
+                                   val *= -1; 
+                                }								
 								acs.summ += val;								
 								if (periods) {
 									var d = tr.datePosted.valueOf();
@@ -160,8 +161,9 @@ module.exports = function account(webapp) {
 									delete ids[item.parentId];
 									if (item.level<=params.accLevel)
 										delete ids[id];
-									if (item.type!=params.accType)
+									if ((params.accType == 'EXPINC' && (item.type!='INCOME' && item.type!='EXPENSE')) || (params.accType != 'EXPINC' && params.accType!=item.type) ){
 										delete ids[id];
+									}
 								})
 								// reduce
 								_.each(ids, function (v,id) {
@@ -185,9 +187,10 @@ module.exports = function account(webapp) {
 									return _.find(params.accIds, function(item){return _.isEqual(elem._id.toString(),item.toString())}
 								)});										
 							}													
-							accKeys = _(accKeys).reduce(function (memo, acc) {								
-								if (acc.type == params.accType || acc.expand)
-									memo[acc._id] = acc;					
+							accKeys = _(accKeys).reduce(function (memo, acc) {
+                                    if ((params.accType == 'EXPINC' && (acc.type=='INCOME' || acc.type=='EXPENSE')) || (params.accType != 'EXPINC' && params.accType==acc.type) || acc.expand ){
+										memo[acc._id] = acc;					
+									}					
 								return memo;
 							}, {});		
 							cb2();

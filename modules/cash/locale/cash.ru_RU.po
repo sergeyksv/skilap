@@ -273,6 +273,10 @@ msgstr "Расходы"
 msgid "Equity"
 msgstr "Выравнивание"
 
+#: ../modules/cash/lib/accapi.js:404
+msgid "expinc"
+msgstr "Расход и Доход"
+
 #: ../modules/cash/lib/accapi.js:402
 msgid "Recievable"
 msgstr "К получению"
